@@ -144,7 +144,8 @@ export class MemStorage implements IStorage {
 
   async addToCurrentlyWatching(item: InsertCurrentlyWatching): Promise<CurrentlyWatching> {
     const id = randomUUID();
-    const newItem: CurrentlyWatching = { ...item, id, addedAt: new Date() };
+    const now = new Date();
+    const newItem: CurrentlyWatching = { ...item, id, startedAt: now, addedAt: now };
     this.currentlyWatching.set(id, newItem);
     return newItem;
   }
@@ -203,7 +204,8 @@ export class MemStorage implements IStorage {
 
   async addToWatched(item: InsertWatchedItem): Promise<WatchedItem> {
     const id = randomUUID();
-    const newItem: WatchedItem = { ...item, id, watchedAt: new Date() };
+    const now = new Date();
+    const newItem: WatchedItem = { ...item, id, finishedAt: now, watchedAt: now };
     this.watchedItems.set(id, newItem);
     return newItem;
   }

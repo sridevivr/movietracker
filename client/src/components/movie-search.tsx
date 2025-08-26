@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { Search, Plus, Check } from "lucide-react";
+import { Search, Plus, Check, Play } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { getImageUrl, formatReleaseDate, type TMDBSearchResult } from "@/lib/tmdb";
@@ -49,6 +50,28 @@ export default function MovieSearch({ userId }: MovieSearchProps) {
     }
   });
 
+  const addToCurrentlyWatchingMutation = useMutation({
+    mutationFn: async (movie: TMDBSearchResult) => {
+      // First create/get the movie
+      const movieRes = await apiRequest("POST", "/api/movies", movie);
+      const movieData = await movieRes.json();
+      
+      // Then add to currently watching
+      await apiRequest("POST", "/api/currently-watching", {
+        userId,
+        movieId: movieData.id,
+        progress: null
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/currently-watching", userId] });
+      toast({ title: "Added to currently watching!" });
+    },
+    onError: () => {
+      toast({ title: "Failed to add to currently watching", variant: "destructive" });
+    }
+  });
+
   const markAsWatchedMutation = useMutation({
     mutationFn: async (movie: TMDBSearchResult) => {
       // First create/get the movie
@@ -60,7 +83,8 @@ export default function MovieSearch({ userId }: MovieSearchProps) {
         userId,
         movieId: movieData.id,
         rating: null,
-        notes: null
+        notes: null,
+        startedAt: null
       });
     },
     onSuccess: () => {
@@ -72,6 +96,20 @@ export default function MovieSearch({ userId }: MovieSearchProps) {
       toast({ title: "Failed to mark as watched", variant: "destructive" });
     }
   });
+
+  const handleStatusChange = async (movie: TMDBSearchResult, status: string) => {
+    switch (status) {
+      case 'watchlist':
+        addToWatchlistMutation.mutate(movie);
+        break;
+      case 'currently-watching':
+        addToCurrentlyWatchingMutation.mutate(movie);
+        break;
+      case 'watched':
+        markAsWatchedMutation.mutate(movie);
+        break;
+    }
+  };
 
   const handleSearch = () => {
     if (searchQuery.trim()) {
@@ -156,26 +194,31 @@ export default function MovieSearch({ userId }: MovieSearchProps) {
                       </p>
                     </div>
                     <div className="flex space-x-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => addToWatchlistMutation.mutate(movie)}
-                        disabled={addToWatchlistMutation.isPending}
-                        data-testid={`button-add-watchlist-${movie.tmdbId}`}
-                      >
-                        <Plus className="w-4 h-4 mr-1" />
-                        Watchlist
-                      </Button>
-                      <Button
-                        size="sm"
-                        className="bg-success hover:bg-green-600"
-                        onClick={() => markAsWatchedMutation.mutate(movie)}
-                        disabled={markAsWatchedMutation.isPending}
-                        data-testid={`button-mark-watched-${movie.tmdbId}`}
-                      >
-                        <Check className="w-4 h-4 mr-1" />
-                        Watched
-                      </Button>
+                      <Select onValueChange={(value) => handleStatusChange(movie, value)}>
+                        <SelectTrigger className="w-40" data-testid={`select-status-${movie.tmdbId}`}>
+                          <SelectValue placeholder="Add to..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="watchlist">
+                            <div className="flex items-center">
+                              <Plus className="w-4 h-4 mr-2" />
+                              Want to Watch
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="currently-watching">
+                            <div className="flex items-center">
+                              <Play className="w-4 h-4 mr-2" />
+                              Currently Watching
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="watched">
+                            <div className="flex items-center">
+                              <Check className="w-4 h-4 mr-2" />
+                              Watched
+                            </div>
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
                 ))

@@ -23,21 +23,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json([]);
       }
 
-      // Format results to match our expected structure
-      const results = (searchData.Search || []).slice(0, 10).map((item: any) => ({
-        tmdbId: item.imdbID, // Using IMDB ID as unique identifier
-        title: item.Title,
-        overview: item.Plot || "No description available",
-        releaseDate: item.Year,
-        posterPath: item.Poster !== "N/A" ? item.Poster : null,
-        backdropPath: null,
-        voteAverage: 0,
-        runtime: null,
-        type: item.Type === 'series' ? 'tv' : 'movie',
-        genres: []
-      }));
+      // Get detailed info for each result to include runtime
+      const detailedResults = await Promise.all(
+        (searchData.Search || []).slice(0, 10).map(async (item: any) => {
+          try {
+            const detailResponse = await fetch(`http://www.omdbapi.com/?apikey=${apiKey}&i=${item.imdbID}&plot=short`);
+            const detailData = await detailResponse.json();
+            
+            // Parse runtime (e.g., "148 min" -> 148)
+            let runtime = null;
+            if (detailData.Runtime && detailData.Runtime !== "N/A") {
+              const runtimeMatch = detailData.Runtime.match(/(\d+)/);
+              runtime = runtimeMatch ? parseInt(runtimeMatch[1]) : null;
+            }
+            
+            return {
+              tmdbId: item.imdbID,
+              title: item.Title,
+              overview: detailData.Plot && detailData.Plot !== "N/A" ? detailData.Plot : "No description available",
+              releaseDate: item.Year,
+              posterPath: item.Poster !== "N/A" ? item.Poster : null,
+              backdropPath: null,
+              voteAverage: detailData.imdbRating && detailData.imdbRating !== "N/A" ? parseFloat(detailData.imdbRating) : 0,
+              runtime: runtime,
+              type: item.Type === 'series' ? 'tv' : 'movie',
+              genres: detailData.Genre && detailData.Genre !== "N/A" ? detailData.Genre.split(', ') : []
+            };
+          } catch (error) {
+            // Fallback to basic info if detailed fetch fails
+            return {
+              tmdbId: item.imdbID,
+              title: item.Title,
+              overview: "No description available",
+              releaseDate: item.Year,
+              posterPath: item.Poster !== "N/A" ? item.Poster : null,
+              backdropPath: null,
+              voteAverage: 0,
+              runtime: null,
+              type: item.Type === 'series' ? 'tv' : 'movie',
+              genres: []
+            };
+          }
+        })
+      );
 
-      res.json(results);
+      res.json(detailedResults);
     } catch (error) {
       console.error('Search error:', error);
       res.status(500).json({ error: "Failed to search movies" });

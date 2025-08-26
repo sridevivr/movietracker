@@ -35,6 +35,7 @@ export const currentlyWatching = pgTable("currently_watching", {
   userId: varchar("user_id").notNull().references(() => users.id),
   movieId: varchar("movie_id").notNull().references(() => movies.id),
   progress: text("progress"), // For TV shows: "S1 E5"
+  startedAt: timestamp("started_at").notNull().defaultNow(),
   addedAt: timestamp("added_at").notNull().defaultNow(),
 });
 
@@ -43,7 +44,9 @@ export const watchedItems = pgTable("watched_items", {
   userId: varchar("user_id").notNull().references(() => users.id),
   movieId: varchar("movie_id").notNull().references(() => movies.id),
   rating: real("rating"),
-  watchedAt: timestamp("watched_at").notNull().defaultNow(),
+  startedAt: timestamp("started_at"),
+  finishedAt: timestamp("finished_at").notNull().defaultNow(),
+  watchedAt: timestamp("watched_at").notNull().defaultNow(), // Keep for backward compatibility
   notes: text("notes"),
 });
 
@@ -71,11 +74,13 @@ export const insertWatchlistItemSchema = createInsertSchema(watchlistItems).omit
 export const insertCurrentlyWatchingSchema = createInsertSchema(currentlyWatching).omit({
   id: true,
   addedAt: true,
+  startedAt: true,
 });
 
 export const insertWatchedItemSchema = createInsertSchema(watchedItems).omit({
   id: true,
   watchedAt: true,
+  finishedAt: true,
 });
 
 export const insertRewatchSchema = createInsertSchema(rewatches).omit({

@@ -53,7 +53,7 @@ export default function RewatchModal({ isOpen, onClose, userId, movieId }: Rewat
         <div className="space-y-4">
           <div>
             <Label htmlFor="rewatch-date" className="text-sm font-medium text-gray-700">
-              Select rewatch date:
+              When did you rewatch this?
             </Label>
             <Input
               id="rewatch-date"

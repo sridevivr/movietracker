@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CheckSquare, RotateCcw, Edit, Trash2, Film, Star } from "lucide-react";
+import { CheckSquare, RotateCcw, Edit, Trash2, Film, Plus, Play } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { getImageUrl, formatReleaseDate } from "@/lib/tmdb";
+import RatingStars from "./rating-stars";
 import RewatchModal from "./rewatch-modal";
 
 interface WatchedListSectionProps {
@@ -35,6 +36,48 @@ export default function WatchedListSection({ userId }: WatchedListSectionProps) 
     }
   });
 
+  const updateRatingMutation = useMutation({
+    mutationFn: async ({ id, rating }: { id: string, rating: number }) => {
+      await apiRequest("PATCH", `/api/watched/${id}`, { rating });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/watched", userId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/stats", userId] });
+      toast({ title: "Rating updated!" });
+    },
+    onError: () => {
+      toast({ title: "Failed to update rating", variant: "destructive" });
+    }
+  });
+
+  const moveToListMutation = useMutation({
+    mutationFn: async ({ movieId, targetList }: { movieId: string, targetList: string }) => {
+      // Remove from watched first
+      await apiRequest("DELETE", `/api/watched/${userId}/${movieId}`);
+      
+      // Add to target list
+      if (targetList === 'watchlist') {
+        await apiRequest("POST", "/api/watchlist", { userId, movieId });
+      } else if (targetList === 'currently-watching') {
+        await apiRequest("POST", "/api/currently-watching", { userId, movieId, progress: null });
+      }
+    },
+    onSuccess: (_, { targetList }) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/watched", userId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/stats", userId] });
+      if (targetList === 'watchlist') {
+        queryClient.invalidateQueries({ queryKey: ["/api/watchlist", userId] });
+        toast({ title: "Moved to watchlist!" });
+      } else if (targetList === 'currently-watching') {
+        queryClient.invalidateQueries({ queryKey: ["/api/currently-watching", userId] });
+        toast({ title: "Moved to currently watching!" });
+      }
+    },
+    onError: () => {
+      toast({ title: "Failed to move item", variant: "destructive" });
+    }
+  });
+
   const removeFromWatchedMutation = useMutation({
     mutationFn: async (movieId: string) => {
       await apiRequest("DELETE", `/api/watched/${userId}/${movieId}`);
@@ -54,24 +97,8 @@ export default function WatchedListSection({ userId }: WatchedListSectionProps) 
     setShowRewatchModal(true);
   };
 
-  const renderStars = (rating: number | null) => {
-    if (!rating) return <span className="text-sm text-gray-500">No rating</span>;
-    
-    const stars = [];
-    for (let i = 1; i <= 5; i++) {
-      stars.push(
-        <Star
-          key={i}
-          className={`w-4 h-4 ${i <= rating ? 'text-yellow-400 fill-current' : 'text-gray-300'}`}
-        />
-      );
-    }
-    return (
-      <div className="flex items-center">
-        {stars}
-        <span className="ml-2 text-sm text-gray-600">{rating.toFixed(1)}</span>
-      </div>
-    );
+  const handleMoveToList = (movieId: string, targetList: string) => {
+    moveToListMutation.mutate({ movieId, targetList });
   };
 
   return (
@@ -154,7 +181,11 @@ export default function WatchedListSection({ userId }: WatchedListSectionProps) 
                         <div className="flex items-center mt-2">
                           <span className="text-sm text-gray-600 mr-2">Your Rating:</span>
                           <div data-testid={`rating-${item.movie.id}`}>
-                            {renderStars(item.rating)}
+                            <RatingStars 
+                              rating={item.rating}
+                              onRatingChange={(rating) => updateRatingMutation.mutate({ id: item.id, rating })}
+                              size="sm"
+                            />
                           </div>
                         </div>
                       </div>
@@ -170,14 +201,27 @@ export default function WatchedListSection({ userId }: WatchedListSectionProps) 
                         <RotateCcw className="w-4 h-4 mr-1" />
                         Log Rewatch
                       </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        data-testid={`button-edit-${item.movie.id}`}
-                      >
-                        <Edit className="w-4 h-4 mr-1" />
-                        Edit
-                      </Button>
+                      
+                      <Select onValueChange={(value) => handleMoveToList(item.movie.id, value)}>
+                        <SelectTrigger className="w-32" data-testid={`select-move-${item.movie.id}`}>
+                          <SelectValue placeholder="Move to..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="watchlist">
+                            <div className="flex items-center">
+                              <Plus className="w-4 h-4 mr-2" />
+                              Want to Watch
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="currently-watching">
+                            <div className="flex items-center">
+                              <Play className="w-4 h-4 mr-2" />
+                              Currently Watching
+                            </div>
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                      
                       <Button
                         size="sm"
                         variant="outline"
@@ -186,8 +230,7 @@ export default function WatchedListSection({ userId }: WatchedListSectionProps) 
                         disabled={removeFromWatchedMutation.isPending}
                         data-testid={`button-remove-watched-${item.movie.id}`}
                       >
-                        <Trash2 className="w-4 h-4 mr-1" />
-                        Remove
+                        <Trash2 className="w-4 h-4" />
                       </Button>
                     </div>
                   </div>
