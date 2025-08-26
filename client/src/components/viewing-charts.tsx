@@ -49,9 +49,6 @@ export default function ViewingCharts({ userId }: ViewingChartsProps) {
     );
   }
 
-  // Debug: Check if we have data
-  console.log('Chart data:', chartData);
-
   return (
     <div className="space-y-6">
       <div className="flex items-center space-x-3">
@@ -60,49 +57,6 @@ export default function ViewingCharts({ userId }: ViewingChartsProps) {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Movies Watched Per Month */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <TrendingUp className="w-5 h-5" />
-              <span>Movies Watched Over Time</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={chartData.monthlyData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis 
-                  dataKey="month" 
-                  fontSize={12}
-                  tickFormatter={(value) => {
-                    const [year, month] = value.split('-');
-                    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                    return `${monthNames[parseInt(month) - 1]} ${year.slice(-2)}`;
-                  }}
-                />
-                <YAxis fontSize={12} />
-                <Tooltip 
-                  labelFormatter={(value) => {
-                    const [year, month] = value.split('-');
-                    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                    return `${monthNames[parseInt(month) - 1]} ${year}`;
-                  }}
-                  formatter={(value: any) => [value, "Movies Watched"]}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="count" 
-                  stroke="#8884d8" 
-                  strokeWidth={2}
-                  dot={{ r: 4 }}
-                  activeDot={{ r: 6 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
         {/* Genre Breakdown */}
         <Card>
           <CardHeader>
@@ -134,8 +88,8 @@ export default function ViewingCharts({ userId }: ViewingChartsProps) {
           </CardContent>
         </Card>
 
-        {/* Rating Trends - Full Width */}
-        <Card className="lg:col-span-2">
+        {/* Rating Trends */}
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
               <TrendingUp className="w-5 h-5" />
