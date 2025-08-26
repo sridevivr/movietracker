@@ -28,14 +28,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Passport serialization
   passport.serializeUser((user: any, done) => {
+    console.log("Serializing user:", user);
     done(null, user.id);
   });
 
   passport.deserializeUser(async (id: string, done) => {
     try {
+      console.log("Deserializing user with ID:", id);
       const user = await storage.getUser(id);
+      console.log("Found user:", user);
       done(null, user);
     } catch (error) {
+      console.error("Deserialize error:", error);
       done(error, null);
     }
   });
@@ -146,6 +150,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(500).json({ error: "Failed to create session" });
         }
         
+        console.log('Login successful, session created for user:', user.id);
+        console.log('Session after login:', req.session);
+        console.log('isAuthenticated after login:', req.isAuthenticated());
+        
         res.json({ user: { id: user.id, username: user.username } });
       });
     } catch (error) {
@@ -169,6 +177,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Get current user
   app.get("/api/auth/user", (req, res) => {
+    console.log("Auth check - Session ID:", req.sessionID);
+    console.log("Auth check - Session:", req.session);
+    console.log("Auth check - User:", req.user);
+    console.log("Auth check - isAuthenticated:", req.isAuthenticated());
+    
     if (req.isAuthenticated()) {
       const user = req.user as any;
       res.json({
