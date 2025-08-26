@@ -9,7 +9,7 @@ export interface IStorage {
 
   // Movies
   getMovie(id: string): Promise<Movie | undefined>;
-  getMovieByTmdbId(tmdbId: number): Promise<Movie | undefined>;
+  getMovieByTmdbId(tmdbId: string): Promise<Movie | undefined>;
   createMovie(movie: InsertMovie): Promise<Movie>;
 
   // Watchlist
@@ -90,7 +90,7 @@ export class MemStorage implements IStorage {
     return this.movies.get(id);
   }
 
-  async getMovieByTmdbId(tmdbId: number): Promise<Movie | undefined> {
+  async getMovieByTmdbId(tmdbId: string): Promise<Movie | undefined> {
     return Array.from(this.movies.values()).find(movie => movie.tmdbId === tmdbId);
   }
 

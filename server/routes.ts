@@ -5,7 +5,7 @@ import { insertMovieSchema, insertWatchlistItemSchema, insertCurrentlyWatchingSc
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
-  // Search movies via TMDB API
+  // Search movies via OMDB API
   app.get("/api/search", async (req, res) => {
     try {
       const { query } = req.query;
@@ -13,47 +13,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Query parameter is required" });
       }
 
-      const apiKey = process.env.TMDB_API_KEY || process.env.VITE_TMDB_API_KEY;
-      if (!apiKey) {
-        return res.status(500).json({ error: "TMDB API key not configured" });
+      const apiKey = "7f42561e"; // OMDB API key
+
+      // Search using OMDB API
+      const searchResponse = await fetch(`http://www.omdbapi.com/?apikey=${apiKey}&s=${encodeURIComponent(query)}`);
+      const searchData = await searchResponse.json();
+
+      if (searchData.Response === "False") {
+        return res.json([]);
       }
 
-      // Search for both movies and TV shows
-      const [movieResponse, tvResponse] = await Promise.all([
-        fetch(`https://api.themoviedb.org/3/search/movie?api_key=${apiKey}&query=${encodeURIComponent(query)}`),
-        fetch(`https://api.themoviedb.org/3/search/tv?api_key=${apiKey}&query=${encodeURIComponent(query)}`)
-      ]);
-
-      const [movieData, tvData] = await Promise.all([
-        movieResponse.json(),
-        tvResponse.json()
-      ]);
-
-      // Format results
-      const results = [
-        ...(movieData.results || []).map((movie: any) => ({
-          tmdbId: movie.id,
-          title: movie.title,
-          overview: movie.overview,
-          releaseDate: movie.release_date,
-          posterPath: movie.poster_path,
-          backdropPath: movie.backdrop_path,
-          voteAverage: movie.vote_average,
-          type: 'movie',
-          genres: [] // Will be populated when needed
-        })),
-        ...(tvData.results || []).map((show: any) => ({
-          tmdbId: show.id,
-          title: show.name,
-          overview: show.overview,
-          releaseDate: show.first_air_date,
-          posterPath: show.poster_path,
-          backdropPath: show.backdrop_path,
-          voteAverage: show.vote_average,
-          type: 'tv',
-          genres: [] // Will be populated when needed
-        }))
-      ].slice(0, 10); // Limit to 10 results
+      // Format results to match our expected structure
+      const results = (searchData.Search || []).slice(0, 10).map((item: any) => ({
+        tmdbId: item.imdbID, // Using IMDB ID as unique identifier
+        title: item.Title,
+        overview: item.Plot || "No description available",
+        releaseDate: item.Year,
+        posterPath: item.Poster !== "N/A" ? item.Poster : null,
+        backdropPath: null,
+        voteAverage: 0,
+        runtime: null,
+        type: item.Type === 'series' ? 'tv' : 'movie',
+        genres: []
+      }));
 
       res.json(results);
     } catch (error) {

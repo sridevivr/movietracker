@@ -1,5 +1,5 @@
 export interface TMDBSearchResult {
-  tmdbId: number;
+  tmdbId: string;
   title: string;
   overview: string;
   releaseDate: string;
@@ -12,10 +12,12 @@ export interface TMDBSearchResult {
 
 export const getImageUrl = (path: string | null, size: string = 'w500'): string => {
   if (!path) return 'https://via.placeholder.com/500x750?text=No+Image';
-  return `https://image.tmdb.org/t/p/${size}${path}`;
+  // OMDB provides direct image URLs, so return them as-is
+  return path;
 };
 
 export const formatReleaseDate = (date: string): string => {
   if (!date) return 'Unknown';
-  return new Date(date).getFullYear().toString();
+  // OMDB returns just the year, so return it directly
+  return date;
 };
