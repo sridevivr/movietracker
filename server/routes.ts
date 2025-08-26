@@ -104,7 +104,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const hashedPassword = await bcrypt.hash(password, 10);
       const user = await storage.createUser({ username, password: hashedPassword });
       
-      res.json({ user: { id: user.id, username: user.username } });
+      // Set up session for new user
+      req.login(user, (err) => {
+        if (err) {
+          console.error('Session registration error:', err);
+          return res.status(500).json({ error: "Failed to create session" });
+        }
+        
+        res.json({ user: { id: user.id, username: user.username } });
+      });
     } catch (error) {
       console.error('Registration error:', error);
       res.status(500).json({ error: "Failed to create user" });
@@ -131,7 +139,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: "Invalid credentials" });
       }
       
-      res.json({ user: { id: user.id, username: user.username } });
+      // Set up session manually for traditional login
+      req.login(user, (err) => {
+        if (err) {
+          console.error('Session login error:', err);
+          return res.status(500).json({ error: "Failed to create session" });
+        }
+        
+        res.json({ user: { id: user.id, username: user.username } });
+      });
     } catch (error) {
       console.error('Login error:', error);
       res.status(500).json({ error: "Failed to login" });
