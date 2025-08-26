@@ -4,6 +4,7 @@ import ViewingStats from "@/components/viewing-stats";
 import WatchlistSection from "@/components/watchlist-section";
 import CurrentlyWatchingSection from "@/components/currently-watching-section";
 import WatchedListSection from "@/components/watched-list-section";
+import RewatchTimeline from "@/components/rewatch-timeline";
 
 const DEMO_USER_ID = "Z8JCPQ1U5ZPApP9wrLrczbBz0lc2";
 
@@ -47,6 +48,9 @@ export default function Home() {
           {/* Currently Watching */}
           <CurrentlyWatchingSection userId={DEMO_USER_ID} />
         </div>
+
+        {/* Rewatch Timeline */}
+        <RewatchTimeline userId={DEMO_USER_ID} />
 
         {/* Watched List */}
         <WatchedListSection userId={DEMO_USER_ID} />
