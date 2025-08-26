@@ -9,6 +9,8 @@ export interface IStorage {
   // Users
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
+  getUserByGoogleId(googleId: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
 
   // Movies
@@ -69,7 +71,13 @@ export class MemStorage implements IStorage {
     const defaultUser: User = {
       id: "Z8JCPQ1U5ZPApP9wrLrczbBz0lc2",
       username: "demo_user",
-      password: "password"
+      password: "password",
+      email: null,
+      googleId: null,
+      displayName: null,
+      profileImageUrl: null,
+      authProvider: "local",
+      createdAt: new Date()
     };
     this.users.set(defaultUser.id, defaultUser);
   }
@@ -84,9 +92,31 @@ export class MemStorage implements IStorage {
     );
   }
 
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    return Array.from(this.users.values()).find(
+      (user) => user.email === email,
+    );
+  }
+
+  async getUserByGoogleId(googleId: string): Promise<User | undefined> {
+    return Array.from(this.users.values()).find(
+      (user) => user.googleId === googleId,
+    );
+  }
+
   async createUser(insertUser: InsertUser): Promise<User> {
     const id = randomUUID();
-    const user: User = { ...insertUser, id };
+    const user: User = { 
+      username: insertUser.username || null,
+      password: insertUser.password || null,
+      email: insertUser.email || null,
+      googleId: insertUser.googleId || null,
+      displayName: insertUser.displayName || null,
+      profileImageUrl: insertUser.profileImageUrl || null,
+      authProvider: insertUser.authProvider || "local",
+      id,
+      createdAt: new Date()
+    };
     this.users.set(id, user);
     return user;
   }
@@ -419,6 +449,16 @@ class PostgresStorage implements IStorage {
 
   async getUserByUsername(username: string): Promise<User | undefined> {
     const result = await this.db.select().from(users).where(eq(users.username, username)).limit(1);
+    return result[0];
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const result = await this.db.select().from(users).where(eq(users.email, email)).limit(1);
+    return result[0];
+  }
+
+  async getUserByGoogleId(googleId: string): Promise<User | undefined> {
+    const result = await this.db.select().from(users).where(eq(users.googleId, googleId)).limit(1);
     return result[0];
   }
 

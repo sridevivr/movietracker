@@ -1,11 +1,81 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
+import passport from "passport";
+import { Strategy as GoogleStrategy } from "passport-google-oauth20";
+import session from "express-session";
 import { storage } from "./storage";
 import { insertMovieSchema, insertWatchlistItemSchema, insertCurrentlyWatchingSchema, insertWatchedItemSchema, insertRewatchSchema, insertUserSchema } from "@shared/schema";
 import bcrypt from "bcrypt";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
+  // Session setup
+  app.use(session({
+    secret: process.env.SESSION_SECRET || 'your-secret-key',
+    resave: false,
+    saveUninitialized: false,
+    cookie: { secure: false } // Set to true for production with HTTPS
+  }));
+
+  // Initialize Passport
+  app.use(passport.initialize());
+  app.use(passport.session());
+
+  // Passport serialization
+  passport.serializeUser((user: any, done) => {
+    done(null, user.id);
+  });
+
+  passport.deserializeUser(async (id: string, done) => {
+    try {
+      const user = await storage.getUser(id);
+      done(null, user);
+    } catch (error) {
+      done(error, null);
+    }
+  });
+
+  // Google OAuth Strategy
+  if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+    passport.use(new GoogleStrategy({
+      clientID: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      callbackURL: "/api/auth/google/callback"
+    }, async (accessToken, refreshToken, profile, done) => {
+      try {
+        // Check if user already exists with this Google ID
+        let user = await storage.getUserByGoogleId(profile.id);
+        
+        if (user) {
+          return done(null, user);
+        }
+        
+        // Check if user exists with this email
+        const email = profile.emails?.[0]?.value;
+        if (email) {
+          user = await storage.getUserByEmail(email);
+          if (user) {
+            // User exists but without Google ID - this shouldn't happen in normal flow
+            return done(new Error('User exists with different auth method'), false);
+          }
+        }
+        
+        // Create new user
+        user = await storage.createUser({
+          googleId: profile.id,
+          email: email || null,
+          displayName: profile.displayName || null,
+          profileImageUrl: profile.photos?.[0]?.value || null,
+          authProvider: "google"
+        });
+        
+        return done(null, user);
+      } catch (error) {
+        return done(error, false);
+      }
+    }));
+  }
+
   // Authentication routes
   app.post("/api/auth/register", async (req, res) => {
     try {
@@ -46,7 +116,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Find user
       const user = await storage.getUserByUsername(username);
-      if (!user) {
+      if (!user || !user.password) {
         return res.status(401).json({ error: "Invalid credentials" });
       }
       
@@ -61,6 +131,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('Login error:', error);
       res.status(500).json({ error: "Failed to login" });
     }
+  });
+
+  // Google OAuth routes
+  app.get("/api/auth/google",
+    passport.authenticate("google", { scope: ["profile", "email"] })
+  );
+
+  app.get("/api/auth/google/callback",
+    passport.authenticate("google", { failureRedirect: "/?error=auth_failed" }),
+    (req, res) => {
+      // Successful authentication, redirect to home page
+      res.redirect("/");
+    }
+  );
+
+  // Get current user
+  app.get("/api/auth/user", (req, res) => {
+    if (req.isAuthenticated()) {
+      const user = req.user as any;
+      res.json({
+        id: user.id,
+        username: user.username,
+        displayName: user.displayName,
+        email: user.email,
+        profileImageUrl: user.profileImageUrl,
+        authProvider: user.authProvider
+      });
+    } else {
+      res.status(401).json({ error: "Not authenticated" });
+    }
+  });
+
+  // Logout
+  app.post("/api/auth/logout", (req, res) => {
+    req.logout((err) => {
+      if (err) {
+        return res.status(500).json({ error: "Failed to logout" });
+      }
+      res.json({ success: true });
+    });
   });
   
   // Search movies via TMDB API

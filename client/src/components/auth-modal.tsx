@@ -13,11 +13,21 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { FcGoogle } from "react-icons/fc";
+
+interface User {
+  id: string;
+  username?: string;
+  displayName?: string;
+  email?: string;
+  profileImageUrl?: string;
+  authProvider: string;
+}
 
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAuthSuccess: (user: { id: string; username: string }) => void;
+  onAuthSuccess: (user: User) => void;
 }
 
 export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalProps) {
@@ -81,6 +91,11 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleGoogleLogin = () => {
+    // Redirect to Google OAuth
+    window.location.href = '/api/auth/google';
   };
 
   const handleClose = () => {
@@ -166,6 +181,26 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
             </div>
           </TabsContent>
         </Tabs>
+
+        <div className="relative">
+          <div className="absolute inset-0 flex items-center">
+            <span className="w-full border-t" />
+          </div>
+          <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-background px-2 text-muted-foreground">Or</span>
+          </div>
+        </div>
+
+        <Button
+          variant="outline"
+          className="w-full"
+          onClick={handleGoogleLogin}
+          disabled={isLoading}
+          data-testid="button-google-signin"
+        >
+          <FcGoogle className="w-4 h-4 mr-2" />
+          Continue with Google
+        </Button>
 
         <DialogFooter>
           <Button 

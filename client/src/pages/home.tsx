@@ -8,43 +8,80 @@ import CurrentlyWatchingSection from "@/components/currently-watching-section";
 import WatchedListSection from "@/components/watched-list-section";
 import AuthModal from "@/components/auth-modal";
 import { Button } from "@/components/ui/button";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+
+interface User {
+  id: string;
+  username?: string;
+  displayName?: string;
+  email?: string;
+  profileImageUrl?: string;
+  authProvider: string;
+}
 
 export default function Home() {
-  const [user, setUser] = useState<{ id: string; username: string } | null>(null);
+  const { toast } = useToast();
+  const [user, setUser] = useState<User | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
-  // Load user from localStorage on mount
+  // Check authentication status on mount
   useEffect(() => {
-    const savedUser = localStorage.getItem("movieTracker_user");
-    
-    if (savedUser) {
-      try {
-        const userData = JSON.parse(savedUser);
-        setUser(userData);
-        setShowAuthModal(false);
-      } catch (error) {
-        // Clear invalid data
-        localStorage.removeItem("movieTracker_user");
-        setShowAuthModal(true);
-      }
-    } else {
-      setShowAuthModal(true);
-    }
+    checkAuthStatus();
   }, []);
 
-  const handleAuthSuccess = (userData: { id: string; username: string }) => {
+  const checkAuthStatus = async () => {
+    try {
+      const response = await apiRequest("GET", "/api/auth/user");
+      const userData = await response.json();
+      setUser(userData);
+      setShowAuthModal(false);
+    } catch (error) {
+      // User is not authenticated
+      setUser(null);
+      setShowAuthModal(true);
+    } finally {
+      setIsCheckingAuth(false);
+    }
+  };
+
+  const handleAuthSuccess = (userData: User) => {
     setUser(userData);
-    localStorage.setItem("movieTracker_user", JSON.stringify(userData));
     setShowAuthModal(false);
+    // After auth success, refresh to get latest user state
+    setTimeout(() => checkAuthStatus(), 100);
   };
 
-  const handleLogout = () => {
-    setUser(null);
-    localStorage.removeItem("movieTracker_user");
-    setShowAuthModal(true);
+  const handleLogout = async () => {
+    try {
+      await apiRequest("POST", "/api/auth/logout");
+      setUser(null);
+      setShowAuthModal(true);
+      toast({ title: "Logged out successfully" });
+    } catch (error) {
+      toast({ 
+        title: "Error logging out", 
+        description: "Please try again",
+        variant: "destructive" 
+      });
+    }
   };
 
-  // Show loading or auth modal if no user
+  // Show loading state while checking auth
+  if (isCheckingAuth) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <Film className="text-primary text-6xl mx-auto animate-pulse" />
+          <h1 className="text-3xl font-bold text-gray-900">Movie Tracker</h1>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show auth modal if no user
   if (!user) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -78,8 +115,16 @@ export default function Home() {
             </div>
             <div className="flex items-center space-x-4">
               <span className="text-sm text-gray-600 flex items-center">
-                <User className="w-4 h-4 mr-1" />
-                Welcome, <span className="font-medium ml-1">{user.username}</span>
+                {user.profileImageUrl ? (
+                  <img 
+                    src={user.profileImageUrl} 
+                    alt="Profile" 
+                    className="w-5 h-5 rounded-full object-cover mr-1"
+                  />
+                ) : (
+                  <User className="w-4 h-4 mr-1" />
+                )}
+                Welcome, <span className="font-medium ml-1">{user.displayName || user.username || user.email || 'User'}</span>
               </span>
               <button 
                 className="text-gray-600 hover:text-gray-900"
