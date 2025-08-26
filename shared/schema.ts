@@ -88,6 +88,8 @@ export const insertWatchedItemSchema = createInsertSchema(watchedItems).omit({
 
 export const insertRewatchSchema = createInsertSchema(rewatches).omit({
   id: true,
+}).extend({
+  watchedAt: z.string().or(z.date()).transform((val) => new Date(val))
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;

@@ -264,10 +264,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/rewatches", async (req, res) => {
     try {
       const data = insertRewatchSchema.parse(req.body);
-      const rewatch = await storage.addRewatch({
-        ...data,
-        watchedAt: new Date(data.watchedAt)
-      });
+      const rewatch = await storage.addRewatch(data);
       res.json(rewatch);
     } catch (error) {
       console.error("Rewatch validation error:", error);

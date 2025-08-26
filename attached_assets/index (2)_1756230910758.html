@@ -1,0 +1,1299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yes, I've Watched this</title>
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom styles for star rating */
+        .stars {
+            unicode-bidi: bidi-override;
+            direction: rtl;
+            font-size: 1.5rem;
+            display: inline-block;
+        }
+        .stars > span {
+            display: inline-block;
+            position: relative;
+            width: 1.1em;
+            cursor: pointer;
+        }
+        .stars > span:hover:before,
+        .stars > span:hover ~ span:before {
+            content: "\2605";
+            position: absolute;
+            color: gold;
+        }
+        /* Corrected the CSS selector to light up the stars */
+        .stars > span.rated:before,
+        .stars > span.rated ~ span:before {
+            content: "\2605";
+            position: absolute;
+            color: gold;
+        }
+        /* Style for the modal overlay and content */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.75);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background-color: #fff;
+            padding: 2rem;
+            border-radius: 1rem;
+            max-width: 90%;
+            max-height: 90%;
+            overflow-y: auto;
+            position: relative;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+        }
+        .close-btn {
+            position: absolute;
+            top: 1rem;
+            right: 1.5rem;
+            font-size: 2rem;
+            font-weight: bold;
+            color: #aaa;
+            cursor: pointer;
+        }
+        .spinner {
+            border-top-color: #3B82F6;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
+
+    <div id="notification-container" class="fixed top-4 left-1/2 -translate-x-1/2 hidden z-50">
+        <div id="notification-message" class="bg-green-500 text-white font-bold py-2 px-6 rounded-xl shadow-lg transform transition-all duration-300">
+            </div>
+    </div>
+
+    <div id="movie-details-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <span id="close-modal-btn" class="close-btn">&times;</span>
+            <div id="modal-content-details">
+                <div class="flex flex-col items-center">
+                    <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+                    <p class="mt-4 text-gray-600">Loading details...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="rewatch-modal" class="modal-overlay hidden">
+        <div class="modal-content text-center">
+            <h3 class="text-2xl font-bold mb-4 text-gray-800">Log Rewatch</h3>
+            <label for="rewatch-date-input" class="block font-semibold text-gray-700 mb-2">Select rewatch date:</label>
+            <input type="date" id="rewatch-date-input" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all mb-4">
+            <div class="flex justify-center space-x-4">
+                <button id="add-rewatch-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-xl shadow transition-all duration-300">Add</button>
+                <button id="cancel-rewatch-btn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-3 px-6 rounded-xl shadow transition-all duration-300">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="app-container" class="bg-white rounded-3xl shadow-2xl p-8 max-w-2xl w-full hidden">
+        <h1 class="text-4xl font-bold text-center text-gray-800 mb-6">
+            Yes, I've Watched this
+        </h1>
+
+        <p id="user-id-display" class="text-xs text-gray-400 text-center mb-4"></p>
+
+        <div class="mb-6">
+            <label for="movie-search-input" class="block text-gray-700 font-semibold mb-2">
+                Search by Title:
+            </label>
+            <div class="flex items-center space-x-2 mb-6">
+                <input type="text" id="movie-search-input" placeholder="e.g., The Matrix" class="flex-grow p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
+                <button id="search-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-xl shadow transition-all duration-300 transform hover:-translate-y-1 focus:outline-none focus:ring-4 focus:ring-blue-500 focus:ring-opacity-50">
+                    Search
+                </button>
+            </div>
+
+            <label for="llm-search-input" class="block text-gray-700 font-semibold mb-2">
+                Or describe a movie you want to find:
+            </label>
+            <div class="flex flex-col space-y-2">
+                <textarea id="llm-search-input" placeholder="e.g., a sci-fi movie about a team of thieves who steal secrets from people's dreams" rows="3" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"></textarea>
+                <button id="llm-search-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-xl shadow transition-all duration-300 transform hover:-translate-y-1 focus:outline-none focus:ring-4 focus:ring-blue-500 focus:ring-opacity-50">
+                    Find Movies
+                </button>
+            </div>
+        </div>
+
+        <div id="search-results" class="mb-8">
+            <h2 class="text-2xl font-semibold text-gray-800 mb-4 hidden">
+                Search Results:
+            </h2>
+            <div id="results-list" class="grid gap-4 sm:grid-cols-2">
+                </div>
+            <div id="no-results" class="text-center text-gray-500 p-4 hidden">
+                No results found. Please try a different search.
+            </div>
+            <div id="llm-loading" class="text-center text-gray-500 p-4 hidden">
+                <div class="flex flex-col items-center">
+                    <div class="spinner border-t-4 border-b-4 border-blue-500 rounded-full w-12 h-12"></div>
+                    <p class="mt-2">Thinking...</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="stats-section" class="mb-8 p-6 bg-gray-50 rounded-xl shadow-md">
+            <h2 class="text-2xl font-semibold text-gray-800 mb-4">My Viewing Stats</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-center">
+                <div class="bg-white p-4 rounded-xl shadow-sm">
+                    <p class="text-3xl font-bold text-blue-500" id="total-count">0</p>
+                    <p class="text-gray-600">Total Watched</p>
+                </div>
+                <div class="bg-white p-4 rounded-xl shadow-sm">
+                    <p class="text-3xl font-bold text-purple-500" id="total-runtime">0h 0m</p>
+                    <p class="text-gray-600">Total Watch Time</p>
+                </div>
+                <div class="bg-white p-4 rounded-xl shadow-sm">
+                    <p class="text-3xl font-bold text-green-500" id="average-rating">0.00</p>
+                    <p class="text-gray-600">Average Rating</p>
+                </div>
+                <div class="bg-white p-4 rounded-xl shadow-sm">
+                    <p class="text-xl font-bold text-red-500" id="favorite-genre">None</p>
+                    <p class="text-gray-600">Top Genre</p>
+                </div>
+                <div class="bg-white p-4 rounded-xl shadow-sm">
+                    <p class="text-3xl font-bold text-orange-500" id="total-rewatch-time">0h 0m</p>
+                    <p class="text-gray-600">Total Rewatch Time</p>
+                </div>
+            </div>
+        </div>
+        
+        <div id="want-to-watch-section" class="mb-8">
+            <h2 class="text-2xl font-semibold text-gray-800 mb-4">Want to Watch:</h2>
+            <div id="want-to-watch-list" class="space-y-4">
+                <div class="bg-gray-50 p-4 rounded-xl shadow-md">
+                    <p class="font-bold text-gray-800">No items in your watchlist.</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="currently-watching-section" class="mb-8">
+            <h2 class="text-2xl font-semibold text-gray-800 mb-4">Currently Watching:</h2>
+            <div id="currently-watching-list" class="space-y-4">
+                <div class="bg-gray-50 p-4 rounded-xl shadow-md">
+                    <p class="font-bold text-gray-800">No items are currently being watched.</p>
+                </div>
+            </div>
+        </div>
+
+        <div>
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-2xl font-semibold text-gray-800">My Watched List:</h2>
+                <div class="flex items-center space-x-4">
+                    <div class="flex items-center space-x-2">
+                        <label for="filter-list-select" class="text-gray-700">Filter:</label>
+                        <select id="filter-list-select" class="p-2 border border-gray-300 rounded-xl">
+                            <option value="all">All</option>
+                            <option value="movie">Movies</option>
+                            <option value="series">TV Shows</option>
+                        </select>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <label for="sort-list-select" class="text-gray-700">Sort by:</label>
+                        <select id="sort-list-select" class="p-2 border border-gray-300 rounded-xl">
+                            <option value="title">Title</option>
+                            <option value="year">Year</option>
+                            <option value="rating">Rating</option>
+                            <option value="finishDate">Date Finished</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="watched-list" class="space-y-4">
+                <div class="bg-gray-50 p-4 rounded-xl shadow-md">
+                    <p class="font-bold text-gray-800">Loading your watched list...</p>
+                    <p class="text-sm text-gray-500">Please wait while we connect to the database.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="loading-spinner" class="flex flex-col items-center">
+      <div class="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500"></div>
+      <p class="mt-4 text-gray-600">Initializing app...</p>
+    </div>
+
+    <script type="module">
+        // Import Firebase functions here
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
+        import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-analytics.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
+        import { getFirestore, collection, onSnapshot, addDoc, query, where, getDocs, doc, deleteDoc, updateDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
+        
+        // **MOVED**: These variables must be at the top level
+        const loadingSpinner = document.getElementById('loading-spinner');
+        const appContainer = document.getElementById('app-container');
+        
+        // Show loading spinner immediately
+        loadingSpinner.classList.remove('hidden');
+        appContainer.classList.add('hidden');
+        
+        // Your Firebase project configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyCv_jzkokYrVoYBxE2xuyWpIg5hTDr3yCM",
+            authDomain: "movie-tracker-svr.firebaseapp.com",
+            projectId: "movie-tracker-svr",
+            storageBucket: "movie-tracker-svr.firebasestorage.app",
+            messagingSenderId: "964296960808",
+            appId: "1:964296960808:web:9e985ea86f0b70c6843e1d",
+            measurementId: "G-9SY7BLLE59"
+        };
+        
+        // Your existing API keys
+        const OMDB_API_KEY = "7f42561e"; 
+        const llmApiKey = 'AIzaSyAf0Y2PFEQRsZHo6xYfYnI_5VVW6RicDfE';
+
+        // Firestore and Auth variables
+        let db;
+        let auth;
+        let userId;
+        let activeRewatchDocId = null;
+        let watchedMoviesData = [];
+        
+        // Initialize Firebase
+        try {
+            const app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            auth = getAuth(app);
+            
+            // Sign in to Firebase Auth
+            const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+            if (initialAuthToken) {
+                signInWithCustomToken(auth, initialAuthToken)
+                    .then((userCredential) => {
+                        userId = userCredential.user.uid;
+                        console.log("Signed in with custom token. User ID:", userId);
+                        initApp();
+                    })
+                    .catch((error) => {
+                        console.error("Custom token sign-in failed:", error);
+                        signInAnonymously(auth)
+                            .then((userCredential) => {
+                                userId = userCredential.user.uid;
+                                console.log("Signed in anonymously. User ID:", userId);
+                                initApp();
+                            });
+                    });
+            } else {
+                signInAnonymously(auth)
+                    .then((userCredential) => {
+                        userId = userCredential.user.uid;
+                        console.log("Signed in anonymously. User ID:", userId);
+                        initApp();
+                    });
+            }
+
+            // Moved all element declarations into the initApp function
+            // to ensure they are available after the DOM has been fully loaded.
+            function initApp() {
+                const loadingSpinner = document.getElementById('loading-spinner');
+                const appContainer = document.getElementById('app-container');
+                const searchInput = document.getElementById('movie-search-input');
+                const searchBtn = document.getElementById('search-btn');
+                const llmSearchInput = document.getElementById('llm-search-input');
+                const llmSearchBtn = document.getElementById('llm-search-btn');
+                const llmLoadingIndicator = document.getElementById('llm-loading');
+                const searchResultsContainer = document.getElementById('search-results');
+                const resultsList = document.getElementById('results-list');
+                const noResultsMessage = document.getElementById('no-results');
+                const userIdDisplay = document.getElementById('user-id-display');
+                const notificationContainer = document.getElementById('notification-container');
+                const notificationMessage = document.getElementById('notification-message');
+                const movieDetailsModal = document.getElementById('movie-details-modal');
+                const modalContentDetails = document.getElementById('modal-content-details');
+                const closeBtn = document.getElementById('close-modal-btn');
+                const sortSelect = document.getElementById('sort-list-select');
+                const filterSelect = document.getElementById('filter-list-select'); 
+                const rewatchModal = document.getElementById('rewatch-modal');
+                const rewatchDateInput = document.getElementById('rewatch-date-input');
+                const addRewatchBtn = document.getElementById('add-rewatch-btn');
+                const cancelRewatchBtn = document.getElementById('cancel-rewatch-btn');
+                const watchedList = document.getElementById('watched-list');
+
+
+                // Show the main app and hide the loading spinner
+                loadingSpinner.classList.add('hidden');
+                appContainer.classList.remove('hidden');
+                userIdDisplay.textContent = `User ID: ${userId}`;
+
+                // Set up the Firestore listener for the watched list
+                const watchedMoviesCollection = collection(db, `artifacts/${userId}/watched-movies`);
+                
+                // Use onSnapshot to get real-time updates to the watched list
+                // This listener will now receive full movie data directly from Firestore
+                onSnapshot(watchedMoviesCollection, (snapshot) => {
+                    // This function no longer needs to make additional API calls
+                    renderListsFromSnapshot(snapshot.docs);
+                });
+
+                // Add event listener for the search button
+                searchBtn.addEventListener('click', async () => {
+                    const query = searchInput.value.trim();
+                    resultsList.innerHTML = ''; // Clear previous results
+                    searchResultsContainer.classList.add('hidden');
+                    noResultsMessage.classList.add('hidden');
+        
+                    if (query) {
+                        const movies = await searchMovies(query);
+                        
+                        if (movies !== null && movies.length > 0) {
+                            searchResultsContainer.classList.remove('hidden');
+                            movies.forEach(movie => {
+                                resultsList.appendChild(createResultCard(movie));
+                            });
+                        } else {
+                            noResultsMessage.classList.remove('hidden');
+                            searchResultsContainer.classList.remove('hidden');
+                        }
+                    }
+                });
+
+                // Add event listener for the LLM search button
+                llmSearchBtn.addEventListener('click', async () => {
+                    const description = llmSearchInput.value.trim();
+                    if (description) {
+                        // Clear previous results and show loading indicator
+                        resultsList.innerHTML = '';
+                        noResultsMessage.classList.add('hidden');
+                        searchResultsContainer.classList.remove('hidden');
+                        llmLoadingIndicator.classList.remove('hidden');
+                        
+                        const movies = await searchMoviesWithLLM(description);
+                        
+                        llmLoadingIndicator.classList.add('hidden'); // Hide loading indicator
+                        
+                        if (movies && movies.length > 0) {
+                            // Process each movie from the LLM and fetch full details
+                            for (const movie of movies) {
+                                const fullDetails = await getMovieDetails(movie.imdbID);
+                                if (fullDetails) {
+                                    resultsList.appendChild(createResultCard(fullDetails));
+                                }
+                            }
+                        } else {
+                            noResultsMessage.classList.remove('hidden');
+                        }
+                    }
+                });
+
+                // Add event listener for the sorting dropdown
+                sortSelect.addEventListener('change', () => renderWatchedList(watchedMoviesData.filter(movie => movie.status === 'Already watched')));
+                // Add event listener for the filter dropdown
+                filterSelect.addEventListener('change', () => renderWatchedList(watchedMoviesData.filter(movie => movie.status === 'Already watched')));
+
+                // Add event listener to close the movie details modal
+                closeBtn.addEventListener('click', () => {
+                    movieDetailsModal.classList.add('hidden');
+                });
+                movieDetailsModal.addEventListener('click', (e) => {
+                    if (e.target.id === 'movie-details-modal') {
+                        movieDetailsModal.classList.add('hidden');
+                    }
+                });
+
+                // Add event listeners for the rewatch modal
+                addRewatchBtn.addEventListener('click', () => {
+                    const rewatchDate = rewatchDateInput.value;
+                    console.log('Add Rewatch button clicked.');
+                    console.log('Rewatch date selected:', rewatchDate);
+                    console.log('Active Doc ID:', activeRewatchDocId);
+
+                    if (rewatchDate && activeRewatchDocId) {
+                        logRewatchDateToFirestore(activeRewatchDocId, rewatchDate);
+                        rewatchModal.classList.add('hidden');
+                        rewatchDateInput.value = ''; // Clear input for next use
+                    } else {
+                        showNotification('Please select a valid date.', 'error');
+                    }
+                });
+                
+                cancelRewatchBtn.addEventListener('click', () => {
+                    rewatchModal.classList.add('hidden');
+                    rewatchDateInput.value = ''; // Clear input on cancel
+                });
+                rewatchModal.addEventListener('click', (e) => {
+                    if (e.target.id === 'rewatch-modal') {
+                        rewatchModal.classList.add('hidden');
+                        rewatchDateInput.value = ''; // Clear input on overlay click
+                    }
+                });
+            }
+        } catch (error) {
+            console.error("Error initializing Firebase:", error);
+            loadingSpinner.innerHTML = `<p class="text-red-500">Error: Could not initialize the app. Please try again.</p>`;
+        }
+        
+        // --- NEW FUNCTION: Renders both watched and currently watching lists from a single snapshot ---
+        function renderListsFromSnapshot(docs) {
+            const watchedList = document.getElementById('watched-list');
+            const currentlyWatchingList = document.getElementById('currently-watching-list');
+            const wantToWatchList = document.getElementById('want-to-watch-list');
+
+            watchedList.innerHTML = '';
+            currentlyWatchingList.innerHTML = '';
+            wantToWatchList.innerHTML = '';
+            watchedMoviesData = [];
+
+            if (docs.length === 0) {
+                watchedList.innerHTML = `
+                    <div class="bg-gray-50 p-4 rounded-xl shadow-md">
+                        <p class="font-bold text-gray-800">No movies added yet.</p>
+                        <p class="text-sm text-gray-500">Search and add a movie to begin.</p>
+                    </div>
+                `;
+                currentlyWatchingList.innerHTML = `
+                    <div class="bg-gray-50 p-4 rounded-xl shadow-md">
+                        <p class="font-bold text-gray-800">No items are currently being watched.</p>
+                    </div>
+                `;
+                wantToWatchList.innerHTML = `
+                    <div class="bg-gray-50 p-4 rounded-xl shadow-md">
+                        <p class="font-bold text-gray-800">No items in your watchlist.</p>
+                    </div>
+                `;
+                renderStats([]);
+                return;
+            }
+
+            watchedMoviesData = docs.map(doc => ({
+                ...doc.data(),
+                docId: doc.id
+            }));
+            
+            // Separate the data into three lists
+            const wantToWatchItems = watchedMoviesData.filter(movie => movie.status === 'Want to watch');
+            const currentlyWatchingItems = watchedMoviesData.filter(movie => movie.status === 'Currently viewing');
+            const finishedWatchingItems = watchedMoviesData.filter(movie => movie.status === 'Already watched');
+
+            // Render the three lists separately
+            renderWantToWatchList(wantToWatchItems);
+            renderCurrentlyWatchingList(currentlyWatchingItems);
+            renderWatchedList(finishedWatchingItems);
+            
+            // Render the stats based on the finished items
+            renderStats(finishedWatchingItems);
+        }
+
+        // --- NEW FUNCTION: Renders the "Want to Watch" list ---
+        function renderWantToWatchList(items) {
+            const wantToWatchList = document.getElementById('want-to-watch-list');
+            wantToWatchList.innerHTML = '';
+
+            if (items.length === 0) {
+                wantToWatchList.innerHTML = `
+                    <div class="bg-gray-50 p-4 rounded-xl shadow-md">
+                        <p class="font-bold text-gray-800">No items in your watchlist.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            items.forEach(movie => {
+                const card = createWantToWatchCard(movie);
+                wantToWatchList.appendChild(card);
+            });
+        }
+
+        // --- NEW FUNCTION: Creates a card for the "Want to Watch" list ---
+        function createWantToWatchCard(movie) {
+            const movieCard = document.createElement('div');
+            movieCard.classList.add('bg-gray-50', 'p-4', 'rounded-xl', 'shadow-md', 'flex', 'items-start', 'space-x-4', 'justify-between');
+
+            movieCard.innerHTML = `
+                <div class="flex items-center space-x-4 flex-grow">
+                    <img src="${movie.Poster}" alt="${movie.Title} poster" onerror="this.onerror=null; this.src='https://placehold.co/100x150/E5E7EB/6B7280?text=No+Poster'" class="w-16 h-24 object-cover rounded-md flex-shrink-0">
+                    <div class="flex-grow">
+                        <p class="font-bold text-gray-800">${movie.Title}</p>
+                        <p class="text-sm text-gray-500">${movie.Year} | ${movie.Genre} (${movie.Type})</p>
+                    </div>
+                </div>
+                <div class="flex flex-col items-end space-y-2">
+                    <div class="relative inline-block text-left">
+                        <button class="status-btn bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-xl shadow transition-all duration-300 transform hover:scale-105">
+                            Change Status
+                        </button>
+                        <div class="status-dropdown-menu absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50 hidden">
+                            <div class="py-1" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
+                                <button class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem" data-status="Currently viewing">Currently viewing</button>
+                                <button class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem" data-status="Already watched">Already watched</button>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="remove-btn bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-xl shadow transition-all duration-300 transform hover:scale-105">
+                        Remove
+                    </button>
+                </div>
+            `;
+            
+            const statusBtn = movieCard.querySelector('.status-btn');
+            const dropdownMenu = movieCard.querySelector('.status-dropdown-menu');
+            const removeBtn = movieCard.querySelector('.remove-btn');
+
+            statusBtn.addEventListener('click', () => {
+                dropdownMenu.classList.toggle('hidden');
+            });
+
+            dropdownMenu.querySelectorAll('button').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const newStatus = e.target.dataset.status;
+                    updateMovieStatus(movie.docId, newStatus);
+                    dropdownMenu.classList.add('hidden');
+                });
+            });
+
+            removeBtn.addEventListener('click', () => {
+                removeMovieFromFirestore(movie.docId);
+            });
+
+            return movieCard;
+        }
+
+        // --- NEW FUNCTION: Renders the "Currently Watching" list ---
+        function renderCurrentlyWatchingList(items) {
+            const currentlyWatchingList = document.getElementById('currently-watching-list');
+            currentlyWatchingList.innerHTML = '';
+
+            if (items.length === 0) {
+                currentlyWatchingList.innerHTML = `
+                    <div class="bg-gray-50 p-4 rounded-xl shadow-md">
+                        <p class="font-bold text-gray-800">No items are currently being watched.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            items.forEach(movie => {
+                const card = createCurrentlyWatchingCard(movie);
+                currentlyWatchingList.appendChild(card);
+            });
+        }
+        
+        // --- UPDATED FUNCTION: Renders the watched list based on the current sort and filter ---
+        // This function now takes the finished items as an argument
+        function renderWatchedList(itemsToRender) {
+            const watchedList = document.getElementById('watched-list');
+            const sortSelect = document.getElementById('sort-list-select');
+            const filterSelect = document.getElementById('filter-list-select');
+            
+            watchedList.innerHTML = '';
+            const sortBy = sortSelect.value;
+            const filterBy = filterSelect.value; 
+
+            let filteredMovies = [...itemsToRender];
+            if (filterBy !== 'all') {
+                filteredMovies = filteredMovies.filter(movie => movie.Type === filterBy);
+            }
+
+            if (sortBy === 'title') {
+                filteredMovies.sort((a, b) => a.Title.localeCompare(b.Title));
+            } else if (sortBy === 'year') {
+                filteredMovies.sort((a, b) => parseInt(a.Year, 10) - parseInt(b.Year, 10));
+            } else if (sortBy === 'rating') {
+                filteredMovies.sort((a, b) => b.userRating - a.userRating);
+            } else if (sortBy === 'finishDate') { 
+                filteredMovies.sort((a, b) => {
+                    if (!a.finishDate && !b.finishDate) return 0;
+                    if (!a.finishDate) return 1;
+                    if (!b.finishDate) return -1;
+                    return b.finishDate.localeCompare(a.finishDate);
+                });
+            }
+
+            if (filteredMovies.length === 0) {
+                let message = `No movies in this list.`;
+                if (filterBy === 'movie') message = 'No movies in your list. Try adding some!';
+                else if (filterBy === 'series') message = 'No TV shows in your list. Try adding some!';
+                watchedList.innerHTML = `
+                    <div class="bg-gray-50 p-4 rounded-xl shadow-md">
+                        <p class="font-bold text-gray-800">${message}</p>
+                    </div>
+                `;
+                return;
+            }
+
+            filteredMovies.forEach(movie => {
+                watchedList.appendChild(createWatchedListCard(movie));
+            });
+        }
+        
+        // --- UPDATED FUNCTION: Calculates and renders the user's viewing stats ---
+        // This function now takes the finished items as an argument
+        function renderStats(finishedItems) {
+            const totalCountEl = document.getElementById('total-count');
+            const totalRuntimeEl = document.getElementById('total-runtime');
+            const averageRatingEl = document.getElementById('average-rating');
+            const favoriteGenreEl = document.getElementById('favorite-genre');
+            const totalRewatchTimeEl = document.getElementById('total-rewatch-time');
+            
+            let totalCount = finishedItems.length;
+            let totalRating = 0;
+            let genreCounts = {};
+            let totalMinutes = 0;
+            let totalRewatchMinutes = 0;
+            
+            finishedItems.forEach(movie => {
+                totalRating += movie.userRating;
+                
+                // Add a check to ensure Runtime is a valid string
+                const runtimeMatch = (movie.Runtime && typeof movie.Runtime === 'string') ? movie.Runtime.match(/(\d+)/) : null;
+                if (runtimeMatch) {
+                    const itemMinutes = parseInt(runtimeMatch[1], 10);
+                    if (movie.Type === 'series' && movie.totalSeasons) {
+                        const totalSeasons = parseInt(movie.totalSeasons, 10);
+                        const assumedEpisodes = 10;
+                        totalMinutes += itemMinutes * totalSeasons * assumedEpisodes;
+                        totalRewatchMinutes += (movie.rewatchDates ? movie.rewatchDates.length : 0) * itemMinutes * totalSeasons * assumedEpisodes;
+                    } else if (movie.Type === 'movie') {
+                        totalMinutes += itemMinutes;
+                        totalRewatchMinutes += (movie.rewatchDates ? movie.rewatchDates.length : 0) * itemMinutes;
+                    }
+                }
+                
+                if (movie.Genre && typeof movie.Genre === 'string') {
+                    const genres = movie.Genre.split(',').map(genre => genre.trim());
+                    genres.forEach(genre => {
+                        if (genreCounts[genre]) {
+                            genreCounts[genre]++;
+                        } else {
+                            genreCounts[genre] = 1;
+                        }
+                    });
+                }
+            });
+
+            const averageRating = totalCount > 0 ? (totalRating / totalCount).toFixed(2) : '0.00';
+            
+            // NEW: Calculate the combined total watch time
+            const totalCombinedMinutes = totalMinutes + totalRewatchMinutes;
+            const totalHours = Math.floor(totalCombinedMinutes / 60);
+            const remainingMinutes = totalCombinedMinutes % 60;
+            const formattedCombinedRuntime = `${totalHours}h ${remainingMinutes}m`;
+            
+            const rewatchHours = Math.floor(totalRewatchMinutes / 60);
+            const rewatchRemainingMinutes = totalRewatchMinutes % 60;
+            const formattedRewatchTime = `${rewatchHours}h ${rewatchRemainingMinutes}m`;
+
+            let favoriteGenre = 'None';
+            let maxCount = 0;
+            for (const genre in genreCounts) {
+                if (genreCounts[genre] > maxCount) {
+                    maxCount = genreCounts[genre];
+                    favoriteGenre = genre;
+                }
+            }
+            
+            totalCountEl.textContent = totalCount;
+            totalRuntimeEl.textContent = formattedCombinedRuntime;
+            averageRatingEl.textContent = averageRating;
+            favoriteGenreEl.textContent = favoriteGenre;
+            totalRewatchTimeEl.textContent = formattedRewatchTime;
+        }
+
+        // --- NEW FUNCTION: Creates a card for the "Currently Watching" list ---
+        function createCurrentlyWatchingCard(movie) {
+            const movieCard = document.createElement('div');
+            movieCard.classList.add('bg-gray-50', 'p-4', 'rounded-xl', 'shadow-md', 'flex', 'items-start', 'space-x-4', 'justify-between');
+            
+            const starsContainer = document.createElement('div');
+            starsContainer.classList.add('stars');
+            for (let i = 5; i >= 1; i--) {
+                const star = document.createElement('span');
+                star.innerHTML = '&#9733;';
+                star.dataset.rating = i;
+                if (movie.userRating >= i) {
+                    star.classList.add('rated');
+                }
+                starsContainer.appendChild(star);
+                star.addEventListener('click', () => {
+                    updateUserRating(movie.docId, i);
+                });
+            }
+
+            movieCard.innerHTML = `
+                <div class="flex items-center space-x-4 flex-grow">
+                    <img src="${movie.Poster}" alt="${movie.Title} poster" onerror="this.onerror=null; this.src='https://placehold.co/100x150/E5E7EB/6B7280?text=No+Poster'" class="w-16 h-24 object-cover rounded-md flex-shrink-0">
+                    <div class="flex-grow">
+                        <p class="font-bold text-gray-800">${movie.Title}</p>
+                        <p class="text-sm text-gray-500">${movie.Year} | ${movie.Genre} (${movie.Type})</p>
+                        <p class="text-sm text-gray-500 mt-1">IMDb: ${movie.imdbRating}</p>
+                    </div>
+                </div>
+                <div class="flex flex-col items-end space-y-2">
+                    <div class="relative inline-block text-left">
+                        <button class="status-btn bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-xl shadow transition-all duration-300 transform hover:scale-105">
+                            Change Status
+                        </button>
+                        <div class="status-dropdown-menu absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50 hidden">
+                            <div class="py-1" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
+                                <button class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem" data-status="Already watched">Already watched</button>
+                                <button class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem" data-status="Want to watch">Want to watch</button>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="remove-btn bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-xl shadow transition-all duration-300 transform hover:scale-105">
+                        Remove
+                    </button>
+                </div>
+            `;
+            const removeBtnContainer = movieCard.querySelector('.flex-col');
+            removeBtnContainer.prepend(starsContainer);
+
+            const statusBtn = movieCard.querySelector('.status-btn');
+            const dropdownMenu = movieCard.querySelector('.status-dropdown-menu');
+            const removeBtn = movieCard.querySelector('.remove-btn');
+
+            statusBtn.addEventListener('click', () => {
+                dropdownMenu.classList.toggle('hidden');
+            });
+
+            dropdownMenu.querySelectorAll('button').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const newStatus = e.target.dataset.status;
+                    updateMovieStatus(movie.docId, newStatus);
+                    dropdownMenu.classList.add('hidden');
+                });
+            });
+
+            const dateContainer = document.createElement('div');
+            dateContainer.classList.add('flex', 'flex-col', 'space-y-2', 'mt-2', 'text-sm', 'text-gray-600', 'w-full');
+            dateContainer.innerHTML = `
+                <div>
+                    <label for="start-date-${movie.docId}" class="block font-semibold">Started:</label>
+                    <input type="date" id="start-date-${movie.docId}" class="w-full p-2 rounded-md border border-gray-300" value="${movie.startDate || ''}">
+                </div>
+            `;
+            movieCard.querySelector('.flex-grow').appendChild(dateContainer);
+            
+            const startDateInput = dateContainer.querySelector(`#start-date-${movie.docId}`);
+            
+            startDateInput.addEventListener('change', (e) => {
+                updateWatchDates(movie.docId, startDateInput.value, '', true);
+            });
+            removeBtn.addEventListener('click', () => {
+                removeMovieFromFirestore(movie.docId);
+            });
+            
+            return movieCard;
+        }
+
+        // Function to create and append a watched list card
+        function createWatchedListCard(movie) {
+            const movieCard = document.createElement('div');
+            movieCard.classList.add('bg-gray-50', 'p-4', 'rounded-xl', 'shadow-md', 'flex', 'items-start', 'space-x-4', 'justify-between');
+            
+            // Create the star rating UI
+            const starsContainer = document.createElement('div');
+            starsContainer.classList.add('stars');
+            for (let i = 5; i >= 1; i--) {
+                const star = document.createElement('span');
+                star.innerHTML = '&#9733;'; // Unicode for star
+                star.dataset.rating = i;
+                if (movie.userRating >= i) {
+                    star.classList.add('rated');
+                }
+                starsContainer.appendChild(star);
+
+                // Add click listener for each star
+                star.addEventListener('click', () => {
+                    updateUserRating(movie.docId, i);
+                });
+            }
+
+            movieCard.innerHTML = `
+                <div class="flex items-center space-x-4 flex-grow">
+                    <img src="${movie.Poster}" alt="${movie.Title} poster" onerror="this.onerror=null; this.src='https://placehold.co/100x150/E5E7EB/6B7280?text=No+Poster'" class="w-16 h-24 object-cover rounded-md flex-shrink-0">
+                    <div class="flex-grow">
+                        <p class="font-bold text-gray-800">${movie.Title}</p>
+                        <p class="text-sm text-gray-500">${movie.Year} | ${movie.Genre} (${movie.Type})</p>
+                        <p class="text-sm text-gray-500 mt-1">IMDb: ${movie.imdbRating}</p>
+                    </div>
+                </div>
+                <div class="flex flex-col items-end space-y-2">
+                    <div class="relative inline-block text-left">
+                        <button class="status-btn bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-xl shadow transition-all duration-300 transform hover:scale-105">
+                            Change Status
+                        </button>
+                        <div class="status-dropdown-menu absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50 hidden">
+                            <div class="py-1" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
+                                <button class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem" data-status="Currently viewing">Currently viewing</button>
+                                <button class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem" data-status="Want to watch">Want to watch</button>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="remove-btn bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-xl shadow transition-all duration-300 transform hover:scale-105">
+                        Remove
+                    </button>
+                    <button class="rewatch-btn bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-xl shadow transition-all duration-300 transform hover:scale-105">
+                        Log Rewatch
+                    </button>
+                </div>
+            `;
+            const removeBtnContainer = movieCard.querySelector('.flex-col');
+            removeBtnContainer.prepend(starsContainer);
+
+            const statusBtn = movieCard.querySelector('.status-btn');
+            const dropdownMenu = movieCard.querySelector('.status-dropdown-menu');
+            const rewatchBtn = movieCard.querySelector('.rewatch-btn');
+            
+            statusBtn.addEventListener('click', () => {
+                dropdownMenu.classList.toggle('hidden');
+            });
+            dropdownMenu.querySelectorAll('button').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const newStatus = e.target.dataset.status;
+                    updateMovieStatus(movie.docId, newStatus);
+                    dropdownMenu.classList.add('hidden');
+                });
+            });
+
+            const dateContainer = document.createElement('div');
+            dateContainer.classList.add('flex', 'flex-col', 'space-y-2', 'mt-2', 'text-sm', 'text-gray-600', 'w-full');
+            dateContainer.innerHTML = `
+                <div>
+                    <label for="start-date-${movie.docId}" class="block font-semibold">Started:</label>
+                    <input type="date" id="start-date-${movie.docId}" class="w-full p-2 rounded-md border border-gray-300" value="${movie.startDate || ''}">
+                </div>
+                <div>
+                    <label for="finish-date-${movie.docId}" class="block font-semibold">Finished:</label>
+                    <input type="date" id="finish-date-${movie.docId}" class="w-full p-2 rounded-md border border-gray-300" value="${movie.finishDate || ''}">
+                </div>
+            `;
+            movieCard.querySelector('.flex-grow').appendChild(dateContainer);
+
+            const rewatchHistoryContainer = document.createElement('div');
+            rewatchHistoryContainer.classList.add('mt-4', 'text-xs', 'text-gray-500', 'w-full');
+            const rewatchDates = movie.rewatchDates || [];
+            if (rewatchDates.length > 0) {
+                rewatchHistoryContainer.innerHTML = `
+                    <p class="font-bold">Rewatched On:</p>
+                    <ul class="list-disc list-inside mt-1">
+                        ${rewatchDates.map(date => `<li>${date}</li>`).join('')}
+                    </ul>
+                `;
+            }
+            movieCard.querySelector('.flex-grow').appendChild(rewatchHistoryContainer);
+
+            const startDateInput = dateContainer.querySelector(`#start-date-${movie.docId}`);
+            const finishDateInput = dateContainer.querySelector(`#finish-date-${movie.docId}`);
+            
+            startDateInput.addEventListener('change', (e) => {
+                updateWatchDates(movie.docId, startDateInput.value, finishDateInput.value, false);
+            });
+            finishDateInput.addEventListener('change', (e) => {
+                updateWatchDates(movie.docId, startDateInput.value, e.target.value, false);
+            });
+            
+            rewatchBtn.addEventListener('click', () => {
+                console.log(`Rewatch button clicked for document ID: ${movie.docId}`);
+                activeRewatchDocId = movie.docId;
+                const rewatchModal = document.getElementById('rewatch-modal');
+                rewatchModal.classList.remove('hidden');
+            });
+            
+            movieCard.querySelector('.remove-btn').addEventListener('click', () => {
+                removeMovieFromFirestore(movie.docId);
+            });
+            
+            return movieCard;
+        }
+
+        // --- NEW FUNCTION: Updates the status of an existing movie in Firestore ---
+        async function updateMovieStatus(docId, newStatus) {
+            if (!userId) {
+                console.error("User not authenticated.");
+                return;
+            }
+            const movieRef = doc(db, `artifacts/${userId}/watched-movies`, docId);
+            const today = new Date().toISOString().split('T')[0];
+            
+            let updateData = { status: newStatus };
+            
+            if (newStatus === 'Currently viewing') {
+                updateData.startDate = today;
+                updateData.finishDate = ''; // Clear finish date
+            } else if (newStatus === 'Already watched') {
+                updateData.finishDate = today;
+                updateData.startDate = '';
+            } else { // "Want to watch"
+                updateData.startDate = '';
+                updateData.finishDate = '';
+            }
+
+            try {
+                await updateDoc(movieRef, updateData);
+                showNotification(`Movie status updated to "${newStatus}"!`, 'success');
+                console.log(`Document ${docId} status updated to ${newStatus}.`);
+            } catch (e) {
+                console.error("Error updating movie status:", e);
+                showNotification('Error updating status. Please try again.', 'error');
+            }
+        }
+
+        async function logRewatchDateToFirestore(docId, rewatchDate) {
+            if (!userId) {
+                console.error("User not authenticated.");
+                return;
+            }
+            const movieRef = doc(db, `artifacts/${userId}/watched-movies`, docId);
+            try {
+                await updateDoc(movieRef, {
+                    rewatchDates: arrayUnion(rewatchDate)
+                });
+                showNotification(`Rewatch logged for ${rewatchDate}!`, 'success');
+                console.log(`Rewatch date ${rewatchDate} added to document ${docId}`);
+            } catch (e) {
+                console.error("Error logging rewatch date:", e);
+                showNotification('Error logging rewatch date. Please try again.', 'error');
+            }
+        }
+
+        async function updateWatchDates(docId, startDate, finishDate) {
+            if (!userId) {
+                console.error("User not authenticated.");
+                return;
+            }
+            const movieRef = doc(db, `artifacts/${userId}/watched-movies`, docId);
+            try {
+                await updateDoc(movieRef, {
+                    startDate: startDate,
+                    finishDate: finishDate,
+                });
+                showNotification(`Watch dates updated!`, 'success');
+                console.log(`Watch dates for document ${docId} updated.`);
+            } catch (e) {
+                console.error("Error updating dates:", e);
+                showNotification('Error updating dates. Please try again.', 'error');
+            }
+        }
+
+        async function updateUserRating(docId, rating) {
+            if (!userId) {
+                console.error("User not authenticated.");
+                return;
+            }
+            const movieRef = doc(db, `artifacts/${userId}/watched-movies`, docId);
+            try {
+                await updateDoc(movieRef, {
+                    userRating: rating
+                });
+                showNotification(`Rating updated to ${rating} stars!`, 'success');
+                console.log(`Rating for document ${docId} updated to ${rating}`);
+            } catch (e) {
+                console.error("Error updating rating:", e);
+                showNotification('Error updating rating. Please try again.', 'error');
+            }
+        }
+        
+        // UPDATED FUNCTION: Now uses a dropdown for status
+        function createResultCard(movie) {
+            const card = document.createElement('div');
+            card.classList.add('bg-white', 'p-4', 'rounded-xl', 'shadow-md', 'flex', 'flex-col', 'items-center', 'text-center', 'space-y-2');
+            
+            card.innerHTML = `
+                <img src="${movie.Poster}" alt="${movie.Title} poster" onerror="this.onerror=null; this.src='https://placehold.co/150x225/E5E7EB/6B7280?text=No+Poster'" class="w-full h-auto object-cover rounded-md cursor-pointer">
+                <p class="font-semibold text-gray-800 text-lg cursor-pointer">${movie.Title}</p>
+                <p class="text-sm text-gray-500">${movie.Year}</p>
+                
+                <div class="relative inline-block text-left">
+                    <div>
+                        <button type="button" class="inline-flex justify-center w-full rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-100 focus:ring-indigo-500" id="options-menu" aria-haspopup="true" aria-expanded="true">
+                            Add to List
+                            <svg class="-mr-1 ml-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="origin-top-right absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50 hidden" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
+                        <div class="py-1">
+                            <button class="block px-4 py-2 text-sm text-gray-700 w-full text-left hover:bg-gray-100" role="menuitem" data-status="Want to watch">Want to watch</button>
+                            <button class="block px-4 py-2 text-sm text-gray-700 w-full text-left hover:bg-gray-100" role="menuitem" data-status="Currently viewing">Currently viewing</button>
+                            <button class="block px-4 py-2 text-sm text-gray-700 w-full text-left hover:bg-gray-100" role="menuitem" data-status="Already watched">Already watched</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            const dropdownBtn = card.querySelector('#options-menu');
+            const dropdownMenu = card.querySelector('.origin-top-right');
+            
+            // Toggle dropdown visibility
+            dropdownBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                dropdownMenu.classList.toggle('hidden');
+            });
+            
+            // Handle clicks on the options within the dropdown
+            dropdownMenu.querySelectorAll('button').forEach(button => {
+                button.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    const selectedStatus = e.target.dataset.status;
+                    const fullDetails = await getMovieDetails(movie.imdbID);
+                    if (fullDetails) {
+                        addMovieToFirestore({
+                            ...fullDetails,
+                            userRating: 0, // Default rating is 0 for newly added movies
+                            rewatchDates: [],
+                            status: selectedStatus,
+                        });
+                    } else {
+                        showNotification('Could not get movie details to add to list. Please try again.', 'error');
+                    }
+                    dropdownMenu.classList.add('hidden'); // Hide dropdown after selection
+                });
+            });
+
+            // Add event listener to the card itself to open the modal
+            card.querySelector('img').addEventListener('click', () => {
+                showMovieDetailModal(movie.imdbID);
+            });
+            card.querySelector('p:first-of-type').addEventListener('click', () => {
+                showMovieDetailModal(movie.imdbID);
+            });
+
+            return card;
+        }
+
+        async function showMovieDetailModal(imdbID) {
+            const movieDetailsModal = document.getElementById('movie-details-modal');
+            const modalContentDetails = document.getElementById('modal-content-details');
+
+            modalContentDetails.innerHTML = `
+                <div class="flex flex-col items-center">
+                    <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+                    <p class="mt-4 text-gray-600">Loading details...</p>
+                </div>
+            `;
+            movieDetailsModal.classList.remove('hidden');
+            
+            const movieDetails = await getMovieDetails(imdbID);
+            
+            if (movieDetails) {
+                modalContentDetails.innerHTML = `
+                    <div class="flex flex-col sm:flex-row items-center sm:items-start space-y-4 sm:space-y-0 sm:space-x-8">
+                        <img src="${movieDetails.Poster}" alt="${movieDetails.Title} poster" onerror="this.onerror=null; this.src='https://placehold.co/300x450/E5E7EB/6B7280?text=No+Poster'" class="w-48 rounded-lg shadow-xl">
+                        <div class="text-center sm:text-left">
+                            <h3 class="text-3xl font-bold text-gray-800">${movieDetails.Title}</h3>
+                            <p class="text-md text-gray-600 mt-2">${movieDetails.Year} | ${movieDetails.Runtime} | ${movieDetails.Genre} (${movieDetails.Type})</p>
+                            <p class="text-md text-gray-600">IMDb: ${movieDetails.imdbRating}/10 | Metascore: ${movieDetails.Metascore}/100</p>
+                            <p class="text-gray-700 italic mt-4">${movieDetails.Plot}</p>
+                            <div class="mt-4">
+                                <p class="text-gray-600"><strong>Director:</strong> ${movieDetails.Director}</p>
+                                <p class="text-gray-600"><strong>Actors:</strong> ${movieDetails.Actors}</p>
+                                <p class="text-gray-600"><strong>Awards:</strong> ${movieDetails.Awards}</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                modalContentDetails.innerHTML = `<p class="text-red-500 text-center">Could not fetch movie details.</p>`;
+            }
+        }
+
+        async function addMovieToFirestore(movie) {
+            if (!userId) {
+                console.error("User not authenticated. Cannot add movie to Firestore.");
+                return;
+            }
+
+            const watchedMoviesCollection = collection(db, `artifacts/${userId}/watched-movies`);
+            
+            const q = query(watchedMoviesCollection, where("imdbID", "==", movie.imdbID));
+            const querySnapshot = await getDocs(q);
+            
+            if (querySnapshot.empty) {
+                try {
+                    // Set dates based on the new status
+                    const today = new Date().toISOString().split('T')[0];
+                    if (movie.status === "Already watched") {
+                        movie.finishDate = today;
+                        movie.startDate = '';
+                    } else if (movie.status === "Currently viewing") {
+                        movie.startDate = today;
+                        movie.finishDate = '';
+                    } else {
+                        movie.startDate = '';
+                        movie.finishDate = '';
+                    }
+                    
+                    await addDoc(watchedMoviesCollection, movie);
+                    console.log("Movie added successfully to Firestore!");
+                    showNotification('Movie added successfully!', 'success');
+                } catch (e) {
+                    console.error("Error adding document: ", e);
+                    showNotification('Error adding movie. Please try again.', 'error');
+                }
+            } else {
+                console.log("Movie already in watched list.");
+                showNotification('Movie is already in your list.', 'info');
+            }
+        }
+
+        async function removeMovieFromFirestore(docId) {
+            if (!userId) {
+                console.error("User not authenticated. Cannot remove movie from Firestore.");
+                return;
+            }
+
+            const movieRef = doc(db, `artifacts/${userId}/watched-movies`, docId);
+            
+            try {
+                await deleteDoc(movieRef);
+                console.log("Movie removed successfully from Firestore!");
+                showNotification('Movie removed successfully!', 'success');
+            } catch (e) {
+                console.error("Error removing document: ", e);
+                showNotification('Error removing movie. Please try again.', 'error');
+            }
+        }
+
+        function showNotification(message, type) {
+            const notificationContainer = document.getElementById('notification-container');
+            const notificationMessage = document.getElementById('notification-message');
+
+            notificationMessage.textContent = message;
+            notificationContainer.classList.remove('hidden');
+
+            if (type === 'success') {
+                notificationMessage.classList.add('bg-green-500');
+                notificationMessage.classList.remove('bg-red-500', 'bg-blue-500');
+            } else if (type === 'error') {
+                notificationMessage.classList.add('bg-red-500');
+                notificationMessage.classList.remove('bg-green-500', 'bg-blue-500');
+            } else {
+                notificationMessage.classList.add('bg-blue-500');
+                notificationMessage.classList.remove('bg-green-500', 'bg-red-500');
+            }
+
+            setTimeout(() => {
+                notificationContainer.classList.add('hidden');
+            }, 3000);
+        }
+
+        async function searchMovies(query) {
+            const url = `https://www.omdbapi.com/?apikey=${OMDB_API_KEY}&s=${encodeURIComponent(query)}`;
+            
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                if (data.Response === 'True') {
+                    return data.Search;
+                } else {
+                    return [];
+                }
+            } catch (error) {
+                console.error('Error fetching data from OMDb API:', error);
+                return null;
+            }
+        }
+
+        async function getMovieDetails(imdbID) {
+            const url = `https://www.omdbapi.com/?apikey=${OMDB_API_KEY}&i=${encodeURIComponent(imdbID)}&plot=full`;
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                if (data.Response === 'True') {
+                    return data;
+                } else {
+                    console.error('Error fetching movie details:', data.Error);
+                    return null;
+                }
+            } catch (error) {
+                console.error('Error fetching data from OMDb API:', error);
+                return null;
+            }
+        }
+        
+        async function searchMoviesWithLLM(description) {
+            const llmLoadingIndicator = document.getElementById('llm-loading');
+            const noResultsMessage = document.getElementById('no-results');
+            
+            const prompt = `Based on the following description, provide a list of movie titles and their corresponding IMDB IDs. The titles should be accurate and the IDs must be valid. Focus on well-known movies that fit the description.
+
+            Description: "${description}"
+
+            Provide the response as a JSON array of objects. Each object must have two properties: "title" (string) and "imdbID" (string). Do not include any other text, markdown, or explanation in the response, only the JSON.`;
+
+            let chatHistory = [];
+            chatHistory.push({ role: "user", parts: [{ text: prompt }] });
+            
+            const payload = {
+                contents: chatHistory,
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "ARRAY",
+                        items: {
+                            type: "OBJECT",
+                            properties: {
+                                "title": { "type": "STRING" },
+                                "imdbID": { "type": "STRING" }
+                            },
+                            "propertyOrdering": ["title", "imdbID"]
+                        }
+                    }
+                }
+            };
+
+            const apiKey = "";
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${llmApiKey}`;
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`API call failed with status: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                
+                if (result.candidates && result.candidates.length > 0 &&
+                    result.candidates[0].content && result.candidates[0].content.parts &&
+                    result.candidates[0].content.parts.length > 0) {
+                    
+                    const json = result.candidates[0].content.parts[0].text;
+                    const parsedJson = JSON.parse(json);
+                    return parsedJson;
+                } else {
+                    console.log("LLM response was empty or malformed.");
+                    showNotification('Could not find movies based on that description. Please try a different one.', 'info');
+                    return [];
+                }
+            } catch (error) {
+                console.error("Error calling LLM API:", error);
+                showNotification('An error occurred during the search. Please try again.', 'error');
+                return [];
+            }
+        }
+    </script>
+</body>
+</html>
