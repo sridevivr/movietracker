@@ -15,9 +15,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     resave: false,
     saveUninitialized: false,
     cookie: { 
-      secure: process.env.NODE_ENV === 'production', 
+      secure: false, // Temporarily disable for debugging
       httpOnly: true,
-      maxAge: 24 * 60 * 60 * 1000 // 24 hours
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      sameSite: 'lax'
     }
   }));
 
@@ -146,12 +147,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     passport.authenticate("google", { failureRedirect: "/?error=auth_failed" }),
     (req, res) => {
       // Successful authentication, redirect to home page
+      console.log("OAuth callback successful, user:", req.user);
       res.redirect("/");
     }
   );
 
   // Get current user
   app.get("/api/auth/user", (req, res) => {
+    console.log("Auth check - isAuthenticated:", req.isAuthenticated(), "session:", req.session, "user:", req.user);
     if (req.isAuthenticated()) {
       const user = req.user as any;
       res.json({
