@@ -178,6 +178,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
   
+  // Get trending and popular content from TMDB API
+  app.get("/api/trending", async (req, res) => {
+    try {
+      const apiKey = process.env.TMDB_API_KEY;
+      if (!apiKey) {
+        return res.status(500).json({ error: "TMDB API key not configured" });
+      }
+
+      // Fetch trending movies and TV shows for the week
+      const [trendingMoviesRes, trendingTVRes, popularMoviesRes, popularTVRes] = await Promise.all([
+        fetch(`https://api.themoviedb.org/3/trending/movie/week?api_key=${apiKey}`),
+        fetch(`https://api.themoviedb.org/3/trending/tv/week?api_key=${apiKey}`),
+        fetch(`https://api.themoviedb.org/3/movie/popular?api_key=${apiKey}`),
+        fetch(`https://api.themoviedb.org/3/tv/popular?api_key=${apiKey}`)
+      ]);
+
+      const [trendingMovies, trendingTV, popularMovies, popularTV] = await Promise.all([
+        trendingMoviesRes.json(),
+        trendingTVRes.json(), 
+        popularMoviesRes.json(),
+        popularTVRes.json()
+      ]);
+
+      // Format results similar to search endpoint
+      const formatContent = (items: any[], mediaType: string) => {
+        return items.slice(0, 10).map((item: any) => ({
+          tmdbId: item.id,
+          title: item.title || item.name,
+          originalTitle: item.original_title || item.original_name,
+          year: item.release_date ? new Date(item.release_date).getFullYear() : 
+                item.first_air_date ? new Date(item.first_air_date).getFullYear() : null,
+          posterUrl: item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : null,
+          overview: item.overview,
+          rating: item.vote_average || 0,
+          voteCount: item.vote_count || 0,
+          mediaType: mediaType,
+          genres: [], // Will be filled by detailed fetch if needed
+          runtime: null, // Will be filled by detailed fetch if needed
+          totalSeasons: item.number_of_seasons || null,
+          totalEpisodes: item.number_of_episodes || null
+        }));
+      };
+
+      const result = {
+        trendingMovies: formatContent(trendingMovies.results || [], 'movie'),
+        trendingTV: formatContent(trendingTV.results || [], 'tv'),
+        popularMovies: formatContent(popularMovies.results || [], 'movie'),
+        popularTV: formatContent(popularTV.results || [], 'tv')
+      };
+
+      res.json(result);
+    } catch (error) {
+      console.error("Error fetching trending content:", error);
+      res.status(500).json({ error: "Failed to fetch trending content" });
+    }
+  });
+
   // Search movies via TMDB API
   app.get("/api/search", async (req, res) => {
     try {
