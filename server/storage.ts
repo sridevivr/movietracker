@@ -392,7 +392,7 @@ class PostgresStorage implements IStorage {
       totalEpisodes: movie.totalEpisodes || null,
       genres: movie.genres || null
     };
-    const result = await this.db.insert(movies).values(movieData).returning();
+    const result = await this.db.insert(movies).values([movieData]).returning();
     return result[0];
   }
 
