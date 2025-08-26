@@ -1,5 +1,9 @@
 import { type User, type InsertUser, type Movie, type InsertMovie, type WatchlistItem, type InsertWatchlistItem, type CurrentlyWatching, type InsertCurrentlyWatching, type WatchedItem, type InsertWatchedItem, type Rewatch, type InsertRewatch } from "@shared/schema";
 import { randomUUID } from "crypto";
+import { drizzle } from "drizzle-orm/neon-http";
+import { neon } from "@neondatabase/serverless";
+import { users, movies, watchlistItems, currentlyWatching, watchedItems, rewatches } from "@shared/schema";
+import { eq, and, desc } from "drizzle-orm";
 
 export interface IStorage {
   // Users
@@ -314,4 +318,253 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+class PostgresStorage implements IStorage {
+  private db;
+
+  constructor() {
+    const sql = neon(process.env.DATABASE_URL!);
+    this.db = drizzle(sql);
+  }
+
+  async getUser(id: string): Promise<User | undefined> {
+    const result = await this.db.select().from(users).where(eq(users.id, id)).limit(1);
+    return result[0];
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const result = await this.db.select().from(users).where(eq(users.username, username)).limit(1);
+    return result[0];
+  }
+
+  async createUser(user: InsertUser): Promise<User> {
+    const result = await this.db.insert(users).values(user).returning();
+    return result[0];
+  }
+
+  async getMovie(id: string): Promise<Movie | undefined> {
+    const result = await this.db.select().from(movies).where(eq(movies.id, id)).limit(1);
+    return result[0];
+  }
+
+  async getMovieByTmdbId(tmdbId: string): Promise<Movie | undefined> {
+    const result = await this.db.select().from(movies).where(eq(movies.tmdbId, tmdbId)).limit(1);
+    return result[0];
+  }
+
+  async createMovie(movie: InsertMovie): Promise<Movie> {
+    const result = await this.db.insert(movies).values(movie).returning();
+    return result[0];
+  }
+
+  async getWatchlist(userId: string): Promise<(WatchlistItem & { movie: Movie })[]> {
+    const result = await this.db
+      .select()
+      .from(watchlistItems)
+      .innerJoin(movies, eq(watchlistItems.movieId, movies.id))
+      .where(eq(watchlistItems.userId, userId))
+      .orderBy(desc(watchlistItems.addedAt));
+
+    return result.map(row => ({
+      ...row.watchlist_items,
+      movie: row.movies
+    }));
+  }
+
+  async addToWatchlist(item: InsertWatchlistItem): Promise<WatchlistItem> {
+    const result = await this.db.insert(watchlistItems).values(item).returning();
+    return result[0];
+  }
+
+  async removeFromWatchlist(userId: string, movieId: string): Promise<void> {
+    await this.db.delete(watchlistItems).where(
+      and(eq(watchlistItems.userId, userId), eq(watchlistItems.movieId, movieId))
+    );
+  }
+
+  async isInWatchlist(userId: string, movieId: string): Promise<boolean> {
+    const result = await this.db
+      .select()
+      .from(watchlistItems)
+      .where(and(eq(watchlistItems.userId, userId), eq(watchlistItems.movieId, movieId)))
+      .limit(1);
+    return result.length > 0;
+  }
+
+  async getCurrentlyWatching(userId: string): Promise<(CurrentlyWatching & { movie: Movie })[]> {
+    const result = await this.db
+      .select()
+      .from(currentlyWatching)
+      .innerJoin(movies, eq(currentlyWatching.movieId, movies.id))
+      .where(eq(currentlyWatching.userId, userId))
+      .orderBy(desc(currentlyWatching.addedAt));
+
+    return result.map(row => ({
+      ...row.currently_watching,
+      movie: row.movies
+    }));
+  }
+
+  async addToCurrentlyWatching(item: InsertCurrentlyWatching): Promise<CurrentlyWatching> {
+    const result = await this.db.insert(currentlyWatching).values(item).returning();
+    return result[0];
+  }
+
+  async updateProgress(id: string, progress: string): Promise<void> {
+    await this.db.update(currentlyWatching).set({ progress }).where(eq(currentlyWatching.id, id));
+  }
+
+  async removeFromCurrentlyWatching(userId: string, movieId: string): Promise<void> {
+    await this.db.delete(currentlyWatching).where(
+      and(eq(currentlyWatching.userId, userId), eq(currentlyWatching.movieId, movieId))
+    );
+  }
+
+  async getWatchedItems(userId: string, filterType?: string, sortBy?: string): Promise<(WatchedItem & { movie: Movie })[]> {
+    let query = this.db
+      .select()
+      .from(watchedItems)
+      .innerJoin(movies, eq(watchedItems.movieId, movies.id))
+      .where(eq(watchedItems.userId, userId));
+
+    const result = await query.orderBy(desc(watchedItems.finishedAt));
+
+    let items = result.map(row => ({
+      ...row.watched_items,
+      movie: row.movies
+    }));
+
+    // Filter by type
+    if (filterType && filterType !== "all") {
+      const typeFilter = filterType === "movies" ? "movie" : "tv";
+      items = items.filter(item => item.movie.type === typeFilter);
+    }
+
+    // Sort
+    if (sortBy) {
+      items.sort((a, b) => {
+        switch (sortBy) {
+          case "title":
+            return a.movie.title.localeCompare(b.movie.title);
+          case "year":
+            return (b.movie.releaseDate || "").localeCompare(a.movie.releaseDate || "");
+          case "rating":
+            return (b.rating || 0) - (a.rating || 0);
+          case "dateFinished":
+            return new Date(b.watchedAt).getTime() - new Date(a.watchedAt).getTime();
+          default:
+            return 0;
+        }
+      });
+    }
+
+    return items;
+  }
+
+  async addToWatched(item: InsertWatchedItem): Promise<WatchedItem> {
+    const result = await this.db.insert(watchedItems).values(item).returning();
+    return result[0];
+  }
+
+  async updateWatchedItem(id: string, rating?: number, notes?: string, finishedAt?: string): Promise<void> {
+    const updateData: any = {};
+    if (rating !== undefined) updateData.rating = rating;
+    if (notes !== undefined) updateData.notes = notes;
+    if (finishedAt !== undefined) {
+      updateData.finishedAt = new Date(finishedAt);
+      updateData.watchedAt = new Date(finishedAt);
+    }
+
+    await this.db.update(watchedItems).set(updateData).where(eq(watchedItems.id, id));
+  }
+
+  async removeFromWatched(userId: string, movieId: string): Promise<void> {
+    await this.db.delete(watchedItems).where(
+      and(eq(watchedItems.userId, userId), eq(watchedItems.movieId, movieId))
+    );
+  }
+
+  async getRewatches(userId: string): Promise<(Rewatch & { movie: Movie })[]> {
+    const result = await this.db
+      .select()
+      .from(rewatches)
+      .innerJoin(movies, eq(rewatches.movieId, movies.id))
+      .where(eq(rewatches.userId, userId))
+      .orderBy(desc(rewatches.watchedAt));
+
+    return result.map(row => ({
+      ...row.rewatches,
+      movie: row.movies
+    }));
+  }
+
+  async getRewatchesForMovie(userId: string, movieId: string): Promise<Rewatch[]> {
+    const result = await this.db
+      .select()
+      .from(rewatches)
+      .where(and(eq(rewatches.userId, userId), eq(rewatches.movieId, movieId)))
+      .orderBy(desc(rewatches.watchedAt));
+
+    return result;
+  }
+
+  async addRewatch(rewatch: InsertRewatch): Promise<Rewatch> {
+    const result = await this.db.insert(rewatches).values(rewatch).returning();
+    return result[0];
+  }
+
+  async getViewingStats(userId: string): Promise<{
+    totalWatched: number;
+    totalWatchTime: string;
+    averageRating: number;
+    topGenre: string;
+    totalRewatchTime: string;
+  }> {
+    const watchedItemsData = await this.getWatchedItems(userId);
+    const rewatchesData = await this.getRewatches(userId);
+
+    const totalWatched = watchedItemsData.length;
+    
+    let totalMinutes = 0;
+    let totalRating = 0;
+    let ratedCount = 0;
+    const genreCounts: Record<string, number> = {};
+
+    watchedItemsData.forEach(item => {
+      if (item.movie.runtime) {
+        totalMinutes += item.movie.runtime;
+      }
+      if (item.rating) {
+        totalRating += item.rating;
+        ratedCount++;
+      }
+      if (item.movie.genres) {
+        item.movie.genres.forEach(genre => {
+          genreCounts[genre] = (genreCounts[genre] || 0) + 1;
+        });
+      }
+    });
+
+    const totalRewatchMinutes = rewatchesData.reduce((total, rewatch) => {
+      return total + (rewatch.movie.runtime || 0);
+    }, 0);
+
+    const formatTime = (minutes: number): string => {
+      const hours = Math.floor(minutes / 60);
+      const mins = minutes % 60;
+      return `${hours}h ${mins}m`;
+    };
+
+    const topGenre = Object.entries(genreCounts)
+      .sort(([,a], [,b]) => b - a)[0]?.[0] || "None";
+
+    return {
+      totalWatched,
+      totalWatchTime: formatTime(totalMinutes + totalRewatchMinutes),
+      averageRating: ratedCount > 0 ? Math.round((totalRating / ratedCount) * 100) / 100 : 0,
+      topGenre,
+      totalRewatchTime: formatTime(totalRewatchMinutes)
+    };
+  }
+}
+
+export const storage = process.env.DATABASE_URL ? new PostgresStorage() : new MemStorage();
