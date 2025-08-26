@@ -18,7 +18,10 @@ export const movies = pgTable("movies", {
   posterPath: text("poster_path"),
   backdropPath: text("backdrop_path"),
   voteAverage: real("vote_average"),
-  runtime: integer("runtime"),
+  runtime: integer("runtime"), // Total runtime (for movies: movie runtime, for TV: episode runtime * total episodes)
+  episodeRuntime: integer("episode_runtime"), // Runtime per episode (TV shows only)
+  totalSeasons: integer("total_seasons"), // Number of seasons (TV shows only)
+  totalEpisodes: integer("total_episodes"), // Total number of episodes (TV shows only)
   genres: text("genres").array(),
   type: text("type").notNull(), // 'movie' or 'tv'
 });

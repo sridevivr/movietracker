@@ -174,6 +174,14 @@ export default function WatchedListSection({ userId }: WatchedListSectionProps) 
                           >
                             {item.movie.type === 'movie' ? 'Movie' : 'TV Show'}
                           </span>
+                          {item.movie.runtime && (
+                            <span className="text-xs text-gray-500">
+                              {item.movie.type === 'tv' 
+                                ? `${Math.floor(item.movie.runtime / 60)}h ${item.movie.runtime % 60}m total` 
+                                : `${item.movie.runtime}m`
+                              }
+                            </span>
+                          )}
                           <span data-testid={`text-watched-date-${item.movie.id}`}>
                             Watched on: {new Date(item.watchedAt).toLocaleDateString()}
                           </span>

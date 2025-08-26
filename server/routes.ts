@@ -30,11 +30,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const detailResponse = await fetch(`http://www.omdbapi.com/?apikey=${apiKey}&i=${item.imdbID}&plot=short`);
             const detailData = await detailResponse.json();
             
-            // Parse runtime (e.g., "148 min" -> 148)
+            // Parse runtime differently for movies vs TV shows
             let runtime = null;
-            if (detailData.Runtime && detailData.Runtime !== "N/A") {
-              const runtimeMatch = detailData.Runtime.match(/(\d+)/);
-              runtime = runtimeMatch ? parseInt(runtimeMatch[1]) : null;
+            if (item.Type === 'series') {
+              // For TV shows, get episode runtime and total episodes
+              let episodeRuntime = null;
+              if (detailData.Runtime && detailData.Runtime !== "N/A") {
+                const runtimeMatch = detailData.Runtime.match(/(\d+)/);
+                episodeRuntime = runtimeMatch ? parseInt(runtimeMatch[1]) : null;
+              }
+              
+              // Try to get total episodes from seasons
+              let totalEpisodes = null;
+              if (detailData.totalSeasons && detailData.totalSeasons !== "N/A") {
+                const seasons = parseInt(detailData.totalSeasons);
+                // Estimate episodes (typical season has 10-24 episodes, use 20 as average)
+                totalEpisodes = seasons * 20;
+              }
+              
+              // Calculate total runtime for TV show
+              if (episodeRuntime && totalEpisodes) {
+                runtime = episodeRuntime * totalEpisodes;
+              } else if (episodeRuntime) {
+                // If we don't know total episodes, estimate based on common patterns
+                runtime = episodeRuntime * 50; // Conservative estimate for unknown episode count
+              }
+            } else {
+              // For movies, parse runtime normally (e.g., "148 min" -> 148)
+              if (detailData.Runtime && detailData.Runtime !== "N/A") {
+                const runtimeMatch = detailData.Runtime.match(/(\d+)/);
+                runtime = runtimeMatch ? parseInt(runtimeMatch[1]) : null;
+              }
+            }
+            
+            // Prepare additional TV show data
+            let episodeRuntime = null;
+            let totalSeasons = null;
+            let totalEpisodes = null;
+            
+            if (item.Type === 'series') {
+              if (detailData.Runtime && detailData.Runtime !== "N/A") {
+                const runtimeMatch = detailData.Runtime.match(/(\d+)/);
+                episodeRuntime = runtimeMatch ? parseInt(runtimeMatch[1]) : null;
+              }
+              
+              if (detailData.totalSeasons && detailData.totalSeasons !== "N/A") {
+                totalSeasons = parseInt(detailData.totalSeasons);
+                totalEpisodes = totalSeasons * 20; // Estimate 20 episodes per season
+              }
             }
             
             return {
@@ -46,6 +89,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
               backdropPath: null,
               voteAverage: detailData.imdbRating && detailData.imdbRating !== "N/A" ? parseFloat(detailData.imdbRating) : 0,
               runtime: runtime,
+              episodeRuntime: episodeRuntime,
+              totalSeasons: totalSeasons,
+              totalEpisodes: totalEpisodes,
               type: item.Type === 'series' ? 'tv' : 'movie',
               genres: detailData.Genre && detailData.Genre !== "N/A" ? detailData.Genre.split(', ') : []
             };
@@ -60,6 +106,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
               backdropPath: null,
               voteAverage: 0,
               runtime: null,
+              episodeRuntime: null,
+              totalSeasons: null,
+              totalEpisodes: null,
               type: item.Type === 'series' ? 'tv' : 'movie',
               genres: []
             };
