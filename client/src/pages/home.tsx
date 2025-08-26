@@ -16,32 +16,26 @@ export default function Home() {
   // Load user from localStorage on mount
   useEffect(() => {
     const savedUser = localStorage.getItem("movieTracker_user");
-    console.log("Loading saved user:", savedUser);
     
     if (savedUser) {
       try {
         const userData = JSON.parse(savedUser);
-        console.log("Parsed user data:", userData);
         setUser(userData);
         setShowAuthModal(false);
       } catch (error) {
-        console.error("Error parsing saved user:", error);
         // Clear invalid data
         localStorage.removeItem("movieTracker_user");
         setShowAuthModal(true);
       }
     } else {
-      console.log("No saved user found");
       setShowAuthModal(true);
     }
   }, []);
 
   const handleAuthSuccess = (userData: { id: string; username: string }) => {
-    console.log("Auth success with user data:", userData);
     setUser(userData);
     localStorage.setItem("movieTracker_user", JSON.stringify(userData));
     setShowAuthModal(false);
-    console.log("User state updated and modal closed");
   };
 
   const handleLogout = () => {

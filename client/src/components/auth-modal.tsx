@@ -37,9 +37,8 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
     setIsLoading(true);
     try {
       const response = await apiRequest("POST", "/api/auth/login", loginData);
-      console.log("Login response:", response);
-      const userData = (response as any).user;
-      console.log("User data from login:", userData);
+      const data = await response.json();
+      const userData = data.user;
       toast({ title: "Welcome back!" });
       onAuthSuccess(userData);
       onClose();
@@ -72,9 +71,8 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
         username: signupData.username,
         password: signupData.password
       });
-      console.log("Register response:", response);
-      const userData = (response as any).user;
-      console.log("User data from register:", userData);
+      const data = await response.json();
+      const userData = data.user;
       toast({ title: "Account created successfully!" });
       onAuthSuccess(userData);
       onClose();
