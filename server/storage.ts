@@ -101,7 +101,20 @@ export class MemStorage implements IStorage {
 
   async createMovie(movie: InsertMovie): Promise<Movie> {
     const id = randomUUID();
-    const newMovie: Movie = { ...movie, id };
+    const newMovie: Movie = { 
+      ...movie, 
+      id,
+      overview: movie.overview || null,
+      releaseDate: movie.releaseDate || null,
+      posterPath: movie.posterPath || null,
+      backdropPath: movie.backdropPath || null,
+      voteAverage: movie.voteAverage || null,
+      runtime: movie.runtime || null,
+      episodeRuntime: movie.episodeRuntime || null,
+      totalSeasons: movie.totalSeasons || null,
+      totalEpisodes: movie.totalEpisodes || null,
+      genres: movie.genres || null
+    };
     this.movies.set(id, newMovie);
     return newMovie;
   }
@@ -150,7 +163,13 @@ export class MemStorage implements IStorage {
   async addToCurrentlyWatching(item: InsertCurrentlyWatching): Promise<CurrentlyWatching> {
     const id = randomUUID();
     const now = new Date();
-    const newItem: CurrentlyWatching = { ...item, id, startedAt: now, addedAt: now };
+    const newItem: CurrentlyWatching = { 
+      ...item, 
+      id, 
+      startedAt: now, 
+      addedAt: now,
+      progress: item.progress || null
+    };
     this.currentlyWatching.set(id, newItem);
     return newItem;
   }
@@ -210,7 +229,15 @@ export class MemStorage implements IStorage {
   async addToWatched(item: InsertWatchedItem): Promise<WatchedItem> {
     const id = randomUUID();
     const now = new Date();
-    const newItem: WatchedItem = { ...item, id, finishedAt: now, watchedAt: now };
+    const newItem: WatchedItem = { 
+      ...item, 
+      id, 
+      finishedAt: now, 
+      watchedAt: now,
+      startedAt: item.startedAt || null,
+      rating: item.rating || null,
+      notes: item.notes || null
+    };
     this.watchedItems.set(id, newItem);
     return newItem;
   }
@@ -352,7 +379,20 @@ class PostgresStorage implements IStorage {
   }
 
   async createMovie(movie: InsertMovie): Promise<Movie> {
-    const result = await this.db.insert(movies).values(movie).returning();
+    const movieData = {
+      ...movie,
+      overview: movie.overview || null,
+      releaseDate: movie.releaseDate || null,
+      posterPath: movie.posterPath || null,
+      backdropPath: movie.backdropPath || null,
+      voteAverage: movie.voteAverage || null,
+      runtime: movie.runtime || null,
+      episodeRuntime: movie.episodeRuntime || null,
+      totalSeasons: movie.totalSeasons || null,
+      totalEpisodes: movie.totalEpisodes || null,
+      genres: movie.genres || null
+    };
+    const result = await this.db.insert(movies).values(movieData).returning();
     return result[0];
   }
 

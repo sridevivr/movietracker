@@ -38,7 +38,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
     try {
       const response = await apiRequest("POST", "/api/auth/login", loginData);
       toast({ title: "Welcome back!" });
-      onAuthSuccess(response.user);
+      onAuthSuccess((response as any).user);
       onClose();
     } catch (error) {
       toast({ title: "Login failed", description: "Please check your credentials", variant: "destructive" });
@@ -70,7 +70,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
         password: signupData.password
       });
       toast({ title: "Account created successfully!" });
-      onAuthSuccess(response.user);
+      onAuthSuccess((response as any).user);
       onClose();
     } catch (error) {
       toast({ title: "Signup failed", description: "Username might already be taken", variant: "destructive" });
