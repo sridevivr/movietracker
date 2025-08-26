@@ -32,6 +32,7 @@ export interface IStorage {
 
   // Rewatches
   getRewatches(userId: string): Promise<(Rewatch & { movie: Movie })[]>;
+  getRewatchesForMovie(userId: string, movieId: string): Promise<Rewatch[]>;
   addRewatch(rewatch: InsertRewatch): Promise<Rewatch>;
 
   // Stats
@@ -241,6 +242,12 @@ export class MemStorage implements IStorage {
     }).filter(rewatch => rewatch.movie);
   }
 
+  async getRewatchesForMovie(userId: string, movieId: string): Promise<Rewatch[]> {
+    return Array.from(this.rewatches.values())
+      .filter(rewatch => rewatch.userId === userId && rewatch.movieId === movieId)
+      .sort((a, b) => new Date(b.watchedAt).getTime() - new Date(a.watchedAt).getTime());
+  }
+
   async addRewatch(rewatch: InsertRewatch): Promise<Rewatch> {
     const id = randomUUID();
     const newRewatch: Rewatch = { 
@@ -299,7 +306,7 @@ export class MemStorage implements IStorage {
 
     return {
       totalWatched,
-      totalWatchTime: formatTime(totalMinutes),
+      totalWatchTime: formatTime(totalMinutes + totalRewatchMinutes),
       averageRating: ratedCount > 0 ? Math.round((totalRating / ratedCount) * 100) / 100 : 0,
       topGenre,
       totalRewatchTime: formatTime(totalRewatchMinutes)

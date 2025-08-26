@@ -223,7 +223,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         filterType as string, 
         sortBy as string
       );
-      res.json(watchedItems);
+      
+      // For each watched item, also get its rewatches
+      const itemsWithRewatches = await Promise.all(
+        watchedItems.map(async (item) => {
+          const rewatches = await storage.getRewatchesForMovie(userId, item.movieId);
+          return { ...item, rewatches };
+        })
+      );
+      
+      res.json(itemsWithRewatches);
     } catch (error) {
       res.status(500).json({ error: "Failed to get watched items" });
     }

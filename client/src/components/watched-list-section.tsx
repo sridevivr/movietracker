@@ -194,6 +194,18 @@ export default function WatchedListSection({ userId }: WatchedListSectionProps) 
                             Finished: {new Date(item.finishedAt || item.watchedAt).toLocaleDateString()}
                           </span>
                         </div>
+                        {item.rewatches && item.rewatches.length > 0 && (
+                          <div className="mt-2 p-2 bg-blue-50 rounded-lg border-l-4 border-blue-400">
+                            <div className="text-sm font-medium text-blue-800">Rewatches:</div>
+                            <div className="text-xs text-blue-600 space-y-1">
+                              {item.rewatches.map((rewatch: any, index: number) => (
+                                <div key={rewatch.id || index}>
+                                  {new Date(rewatch.watchedAt).toLocaleDateString()}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                         <div className="flex items-center mt-2">
                           <span className="text-sm text-gray-600 mr-2">Your Rating:</span>
                           <div data-testid={`rating-${item.movie.id}`}>
