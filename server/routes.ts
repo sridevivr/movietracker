@@ -111,8 +111,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
               totalSeasons = detailData.number_of_seasons || null;
               totalEpisodes = detailData.number_of_episodes || null;
               
+              // Calculate runtime with fallback logic
               if (episodeRuntime && totalEpisodes) {
                 runtime = episodeRuntime * totalEpisodes;
+              } else if (totalEpisodes && !episodeRuntime) {
+                // Fallback: estimate based on show genre/type
+                // Use common TV episode lengths as fallback
+                const estimatedEpisodeRuntime = totalEpisodes > 200 ? 22 : // Likely sitcom
+                                              totalEpisodes > 100 ? 43 :   // Likely drama
+                                              totalEpisodes > 50 ? 30 :    // Medium series
+                                              45;                          // Default drama length
+                runtime = estimatedEpisodeRuntime * totalEpisodes;
+                episodeRuntime = estimatedEpisodeRuntime; // Store the estimate
+                console.log(`Estimated runtime for ${item.name || item.title}: ${estimatedEpisodeRuntime}min x ${totalEpisodes} episodes`);
               }
               
               genres = detailData.genres ? detailData.genres.map((g: any) => g.name) : [];
