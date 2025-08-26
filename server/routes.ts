@@ -9,17 +9,21 @@ import bcrypt from "bcrypt";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
-  // Session setup
+  // Trust proxy for proper session handling behind Replit proxy
+  app.set('trust proxy', 1);
+  
+  // Session setup with MemoryStore for development
   app.use(session({
     secret: process.env.SESSION_SECRET || 'your-secret-key',
     resave: false,
-    saveUninitialized: false,
+    saveUninitialized: true, // Changed to true for debugging
     cookie: { 
-      secure: false, // Temporarily disable for debugging
+      secure: false,
       httpOnly: true,
-      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      maxAge: 24 * 60 * 60 * 1000,
       sameSite: 'lax'
-    }
+    },
+    name: 'movie-tracker-session' // Add explicit session name
   }));
 
   // Initialize Passport
@@ -28,18 +32,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Passport serialization
   passport.serializeUser((user: any, done) => {
-    console.log("Serializing user:", user);
+    console.log("=== SERIALIZE USER ===");
+    console.log("User to serialize:", user);
+    console.log("User ID:", user.id);
+    console.log("=== SERIALIZE END ===");
     done(null, user.id);
   });
 
   passport.deserializeUser(async (id: string, done) => {
     try {
-      console.log("Deserializing user with ID:", id);
+      console.log("=== DESERIALIZE USER ===");
+      console.log("Looking for user ID:", id);
       const user = await storage.getUser(id);
-      console.log("Found user:", user);
+      console.log("Found user from storage:", user);
+      console.log("=== DESERIALIZE END ===");
       done(null, user);
     } catch (error) {
-      console.error("Deserialize error:", error);
+      console.error("=== DESERIALIZE ERROR ===", error);
       done(error, null);
     }
   });
@@ -146,13 +155,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Set up session manually for traditional login
       req.login(user, (err) => {
         if (err) {
-          console.error('Session login error:', err);
+          console.error('=== LOGIN ERROR ===', err);
           return res.status(500).json({ error: "Failed to create session" });
         }
         
-        console.log('Login successful, session created for user:', user.id);
+        console.log('=== LOGIN SUCCESS ===');
+        console.log('User logged in:', user.id);
         console.log('Session after login:', req.session);
-        console.log('isAuthenticated after login:', req.isAuthenticated());
+        console.log('isAuthenticated:', req.isAuthenticated());
+        console.log('=== LOGIN END ===');
         
         res.json({ user: { id: user.id, username: user.username } });
       });
@@ -177,10 +188,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Get current user
   app.get("/api/auth/user", (req, res) => {
-    console.log("Auth check - Session ID:", req.sessionID);
-    console.log("Auth check - Session:", req.session);
-    console.log("Auth check - User:", req.user);
-    console.log("Auth check - isAuthenticated:", req.isAuthenticated());
+    console.log("=== AUTH CHECK DEBUG ===");
+    console.log("Session ID:", req.sessionID);
+    console.log("Session data:", req.session);
+    console.log("Passport user:", req.user);
+    console.log("isAuthenticated():", req.isAuthenticated());
+    console.log("=== END DEBUG ===");
     
     if (req.isAuthenticated()) {
       const user = req.user as any;
