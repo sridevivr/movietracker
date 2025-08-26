@@ -63,7 +63,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Search movies via OMDB API
+  // Search movies via TMDB API
   app.get("/api/search", async (req, res) => {
     try {
       const { query } = req.query;
@@ -71,103 +71,105 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Query parameter is required" });
       }
 
-      const apiKey = "7f42561e"; // OMDB API key
+      const apiKey = process.env.TMDB_API_KEY;
+      if (!apiKey) {
+        return res.status(500).json({ error: "TMDB API key not configured" });
+      }
 
-      // Search using OMDB API
-      const searchResponse = await fetch(`http://www.omdbapi.com/?apikey=${apiKey}&s=${encodeURIComponent(query)}`);
+      // Search using TMDB API
+      const searchResponse = await fetch(`https://api.themoviedb.org/3/search/multi?api_key=${apiKey}&query=${encodeURIComponent(query)}`);
       const searchData = await searchResponse.json();
 
-      if (searchData.Response === "False") {
+      if (!searchData.results || searchData.results.length === 0) {
         return res.json([]);
       }
 
-      // Get detailed info for each result to include runtime
+      // Get detailed info for each result
       const detailedResults = await Promise.all(
-        (searchData.Search || []).slice(0, 10).map(async (item: any) => {
+        searchData.results.slice(0, 10).map(async (item: any) => {
           try {
-            const detailResponse = await fetch(`http://www.omdbapi.com/?apikey=${apiKey}&i=${item.imdbID}&plot=short`);
-            const detailData = await detailResponse.json();
-            
-            // Parse runtime differently for movies vs TV shows
+            let detailData = null;
             let runtime = null;
-            if (item.Type === 'series') {
-              // For TV shows, get episode runtime and total episodes
-              let episodeRuntime = null;
-              if (detailData.Runtime && detailData.Runtime !== "N/A") {
-                const runtimeMatch = detailData.Runtime.match(/(\d+)/);
-                episodeRuntime = runtimeMatch ? parseInt(runtimeMatch[1]) : null;
-              }
-              
-              // Try to get total episodes from seasons
-              let totalEpisodes = null;
-              if (detailData.totalSeasons && detailData.totalSeasons !== "N/A") {
-                const seasons = parseInt(detailData.totalSeasons);
-                // Estimate episodes (typical season has 10-24 episodes, use 20 as average)
-                totalEpisodes = seasons * 20;
-              }
-              
-              // Calculate total runtime for TV show
-              if (episodeRuntime && totalEpisodes) {
-                runtime = episodeRuntime * totalEpisodes;
-              } else if (episodeRuntime) {
-                // If we don't know total episodes, estimate based on common patterns
-                runtime = episodeRuntime * 50; // Conservative estimate for unknown episode count
-              }
-            } else {
-              // For movies, parse runtime normally (e.g., "148 min" -> 148)
-              if (detailData.Runtime && detailData.Runtime !== "N/A") {
-                const runtimeMatch = detailData.Runtime.match(/(\d+)/);
-                runtime = runtimeMatch ? parseInt(runtimeMatch[1]) : null;
-              }
-            }
-            
-            // Prepare additional TV show data
             let episodeRuntime = null;
             let totalSeasons = null;
             let totalEpisodes = null;
-            
-            if (item.Type === 'series') {
-              if (detailData.Runtime && detailData.Runtime !== "N/A") {
-                const runtimeMatch = detailData.Runtime.match(/(\d+)/);
-                episodeRuntime = runtimeMatch ? parseInt(runtimeMatch[1]) : null;
+            let genres: string[] = [];
+
+            // Get detailed information based on media type
+            if (item.media_type === 'movie') {
+              const detailResponse = await fetch(`https://api.themoviedb.org/3/movie/${item.id}?api_key=${apiKey}`);
+              detailData = await detailResponse.json();
+              runtime = detailData.runtime || null;
+              genres = detailData.genres ? detailData.genres.map((g: any) => g.name) : [];
+            } else if (item.media_type === 'tv') {
+              const detailResponse = await fetch(`https://api.themoviedb.org/3/tv/${item.id}?api_key=${apiKey}`);
+              detailData = await detailResponse.json();
+              
+              // For TV shows, calculate total runtime
+              episodeRuntime = detailData.episode_run_time && detailData.episode_run_time.length > 0 
+                ? detailData.episode_run_time[0] : null;
+              totalSeasons = detailData.number_of_seasons || null;
+              totalEpisodes = detailData.number_of_episodes || null;
+              
+              if (episodeRuntime && totalEpisodes) {
+                runtime = episodeRuntime * totalEpisodes;
               }
               
-              if (detailData.totalSeasons && detailData.totalSeasons !== "N/A") {
-                totalSeasons = parseInt(detailData.totalSeasons);
-                totalEpisodes = totalSeasons * 20; // Estimate 20 episodes per season
-              }
+              genres = detailData.genres ? detailData.genres.map((g: any) => g.name) : [];
             }
-            
+
+            const posterPath = item.poster_path 
+              ? `https://image.tmdb.org/t/p/w500${item.poster_path}` 
+              : null;
+
+            const backdropPath = item.backdrop_path 
+              ? `https://image.tmdb.org/t/p/w1280${item.backdrop_path}` 
+              : null;
+
+            // Get the appropriate title and release date
+            const title = item.media_type === 'tv' ? item.name : item.title;
+            const releaseDate = item.media_type === 'tv' ? item.first_air_date : item.release_date;
+            const year = releaseDate ? new Date(releaseDate).getFullYear().toString() : null;
+
             return {
-              tmdbId: item.imdbID,
-              title: item.Title,
-              overview: detailData.Plot && detailData.Plot !== "N/A" ? detailData.Plot : "No description available",
-              releaseDate: item.Year,
-              posterPath: item.Poster !== "N/A" ? item.Poster : null,
-              backdropPath: null,
-              voteAverage: detailData.imdbRating && detailData.imdbRating !== "N/A" ? parseFloat(detailData.imdbRating) : 0,
+              tmdbId: item.id.toString(),
+              title: title,
+              overview: item.overview || "No description available",
+              releaseDate: year,
+              posterPath: posterPath,
+              backdropPath: backdropPath,
+              voteAverage: item.vote_average || 0,
               runtime: runtime,
               episodeRuntime: episodeRuntime,
               totalSeasons: totalSeasons,
               totalEpisodes: totalEpisodes,
-              type: item.Type === 'series' ? 'tv' : 'movie',
-              genres: detailData.Genre && detailData.Genre !== "N/A" ? detailData.Genre.split(', ') : []
+              type: item.media_type === 'tv' ? 'tv' : 'movie',
+              genres: genres
             };
           } catch (error) {
+            console.error('Error fetching details for item:', item.id, error);
             // Fallback to basic info if detailed fetch fails
+            const posterPath = item.poster_path 
+              ? `https://image.tmdb.org/t/p/w500${item.poster_path}` 
+              : null;
+
+            const title = item.media_type === 'tv' ? item.name : item.title;
+            const releaseDate = item.media_type === 'tv' ? item.first_air_date : item.release_date;
+            const year = releaseDate ? new Date(releaseDate).getFullYear().toString() : null;
+
             return {
-              tmdbId: item.imdbID,
-              title: item.Title,
-              overview: "No description available",
-              releaseDate: item.Year,
-              posterPath: item.Poster !== "N/A" ? item.Poster : null,
+              tmdbId: item.id.toString(),
+              title: title,
+              overview: item.overview || "No description available",
+              releaseDate: year,
+              posterPath: posterPath,
               backdropPath: null,
-              voteAverage: 0,
+              voteAverage: item.vote_average || 0,
               runtime: null,
               episodeRuntime: null,
               totalSeasons: null,
               totalEpisodes: null,
-              type: item.Type === 'series' ? 'tv' : 'movie',
+              type: item.media_type === 'tv' ? 'tv' : 'movie',
               genres: []
             };
           }
