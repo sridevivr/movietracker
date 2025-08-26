@@ -6,7 +6,6 @@ import ViewingCharts from "@/components/viewing-charts";
 import WatchlistSection from "@/components/watchlist-section";
 import CurrentlyWatchingSection from "@/components/currently-watching-section";
 import WatchedListSection from "@/components/watched-list-section";
-import RewatchTimeline from "@/components/rewatch-timeline";
 import AuthModal from "@/components/auth-modal";
 import { Button } from "@/components/ui/button";
 
@@ -113,8 +112,6 @@ export default function Home() {
           <CurrentlyWatchingSection userId={user.id} />
         </div>
 
-        {/* Rewatch Timeline */}
-        <RewatchTimeline userId={user.id} />
 
         {/* Watched List */}
         <WatchedListSection userId={user.id} />
