@@ -14,7 +14,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     secret: process.env.SESSION_SECRET || 'your-secret-key',
     resave: false,
     saveUninitialized: false,
-    cookie: { secure: false } // Set to true for production with HTTPS
+    cookie: { 
+      secure: process.env.NODE_ENV === 'production', 
+      httpOnly: true,
+      maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    }
   }));
 
   // Initialize Passport
@@ -40,7 +44,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     passport.use(new GoogleStrategy({
       clientID: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      callbackURL: "/api/auth/google/callback"
+      callbackURL: process.env.NODE_ENV === 'production' 
+        ? "https://movie-tracker-sridevivr.replit.app/api/auth/google/callback"
+        : "/api/auth/google/callback"
     }, async (accessToken, refreshToken, profile, done) => {
       try {
         // Check if user already exists with this Google ID
