@@ -147,14 +147,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     passport.authenticate("google", { failureRedirect: "/?error=auth_failed" }),
     (req, res) => {
       // Successful authentication, redirect to home page
-      console.log("OAuth callback successful, user:", req.user);
       res.redirect("/");
     }
   );
 
   // Get current user
   app.get("/api/auth/user", (req, res) => {
-    console.log("Auth check - isAuthenticated:", req.isAuthenticated(), "session:", req.session, "user:", req.user);
     if (req.isAuthenticated()) {
       const user = req.user as any;
       res.json({
