@@ -1,10 +1,12 @@
 import { PlayCircle, Plus, Check } from "lucide-react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { getImageUrl, formatReleaseDate } from "@/lib/tmdb";
+import ProgressUpdateModal from "./progress-update-modal";
 
 interface CurrentlyWatchingSectionProps {
   userId: string;
@@ -13,6 +15,10 @@ interface CurrentlyWatchingSectionProps {
 export default function CurrentlyWatchingSection({ userId }: CurrentlyWatchingSectionProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [progressModal, setProgressModal] = useState<{ isOpen: boolean; item?: any }>({
+    isOpen: false,
+    item: undefined
+  });
 
   const { data: currentlyWatching = [], isLoading } = useQuery({
     queryKey: ["/api/currently-watching", userId],
@@ -20,6 +26,20 @@ export default function CurrentlyWatchingSection({ userId }: CurrentlyWatchingSe
       const res = await fetch(`/api/currently-watching/${userId}`);
       if (!res.ok) throw new Error('Failed to fetch currently watching');
       return res.json();
+    }
+  });
+
+  const updateProgressMutation = useMutation({
+    mutationFn: async ({ id, progress }: { id: string; progress: string }) => {
+      await apiRequest("PATCH", `/api/currently-watching/${id}/progress`, { progress });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/currently-watching", userId] });
+      toast({ title: "Progress updated!" });
+      setProgressModal({ isOpen: false, item: undefined });
+    },
+    onError: () => {
+      toast({ title: "Failed to update progress", variant: "destructive" });
     }
   });
 
@@ -95,6 +115,7 @@ export default function CurrentlyWatchingSection({ userId }: CurrentlyWatchingSe
                       size="sm"
                       variant="ghost"
                       className="p-2 text-primary hover:bg-blue-50"
+                      onClick={() => setProgressModal({ isOpen: true, item })}
                       data-testid={`button-update-progress-${item.movie.id}`}
                     >
                       <Plus className="w-4 h-4" />
@@ -121,6 +142,25 @@ export default function CurrentlyWatchingSection({ userId }: CurrentlyWatchingSe
           </div>
         )}
       </CardContent>
+      
+      {progressModal.item && (
+        <ProgressUpdateModal
+          isOpen={progressModal.isOpen}
+          onClose={() => setProgressModal({ isOpen: false, item: undefined })}
+          onSave={(progress) => updateProgressMutation.mutate({ 
+            id: progressModal.item.id, 
+            progress 
+          })}
+          currentProgress={progressModal.item.progress}
+          movie={{
+            title: progressModal.item.movie.title,
+            type: progressModal.item.movie.type,
+            totalSeasons: progressModal.item.movie.totalSeasons,
+            totalEpisodes: progressModal.item.movie.totalEpisodes,
+          }}
+          isLoading={updateProgressMutation.isPending}
+        />
+      )}
     </Card>
   );
 }
