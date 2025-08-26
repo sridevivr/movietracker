@@ -10,7 +10,7 @@ export const users = pgTable("users", {
 });
 
 export const movies = pgTable("movies", {
-  id: varchar("id").primaryKey(),
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   tmdbId: text("tmdb_id").notNull().unique(), // Changed to text for IMDB IDs
   title: text("title").notNull(),
   overview: text("overview"),
