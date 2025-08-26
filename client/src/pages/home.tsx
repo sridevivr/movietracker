@@ -2,6 +2,7 @@ import { Film, LogOut, User } from "lucide-react";
 import { useState, useEffect } from "react";
 import MovieSearch from "@/components/movie-search";
 import ViewingStats from "@/components/viewing-stats";
+import ViewingCharts from "@/components/viewing-charts";
 import WatchlistSection from "@/components/watchlist-section";
 import CurrentlyWatchingSection from "@/components/currently-watching-section";
 import WatchedListSection from "@/components/watched-list-section";
@@ -100,6 +101,9 @@ export default function Home() {
 
         {/* Viewing Stats */}
         <ViewingStats userId={user.id} />
+
+        {/* Viewing Charts */}
+        <ViewingCharts userId={user.id} />
 
         <div className="grid md:grid-cols-2 gap-8 mb-8">
           {/* Watchlist */}

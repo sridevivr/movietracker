@@ -290,6 +290,65 @@ export class MemStorage implements IStorage {
     return newRewatch;
   }
 
+  async getChartData(userId: string): Promise<{
+    monthlyData: { month: string; count: number }[];
+    genreData: { genre: string; count: number }[];
+    ratingData: { month: string; averageRating: number }[];
+  }> {
+    const watchedItems = await this.getWatchedItems(userId);
+    
+    // Group by month for movies watched over time
+    const monthlyMap = new Map<string, number>();
+    const ratingMonthlyMap = new Map<string, { total: number; count: number }>();
+    const genreMap = new Map<string, number>();
+
+    watchedItems.forEach(item => {
+      const date = new Date(item.finishedAt);
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      
+      // Count movies per month
+      monthlyMap.set(monthKey, (monthlyMap.get(monthKey) || 0) + 1);
+      
+      // Collect ratings per month
+      if (item.rating) {
+        const existing = ratingMonthlyMap.get(monthKey) || { total: 0, count: 0 };
+        existing.total += item.rating;
+        existing.count += 1;
+        ratingMonthlyMap.set(monthKey, existing);
+      }
+      
+      // Count genres
+      if (item.movie.genres) {
+        item.movie.genres.forEach(genre => {
+          genreMap.set(genre, (genreMap.get(genre) || 0) + 1);
+        });
+      }
+    });
+
+    // Convert to chart data arrays
+    const monthlyData = Array.from(monthlyMap.entries())
+      .map(([month, count]) => ({ month, count }))
+      .sort((a, b) => a.month.localeCompare(b.month));
+
+    const ratingData = Array.from(ratingMonthlyMap.entries())
+      .map(([month, data]) => ({ 
+        month, 
+        averageRating: Math.round((data.total / data.count) * 100) / 100 
+      }))
+      .sort((a, b) => a.month.localeCompare(b.month));
+
+    const genreData = Array.from(genreMap.entries())
+      .map(([genre, count]) => ({ genre, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 7); // Top 7 genres
+
+    return {
+      monthlyData,
+      genreData,
+      ratingData
+    };
+  }
+
   async getViewingStats(userId: string): Promise<{
     totalWatched: number;
     totalWatchTime: string;
@@ -550,6 +609,65 @@ class PostgresStorage implements IStorage {
   async addRewatch(rewatch: InsertRewatch): Promise<Rewatch> {
     const result = await this.db.insert(rewatches).values(rewatch).returning();
     return result[0];
+  }
+
+  async getChartData(userId: string): Promise<{
+    monthlyData: { month: string; count: number }[];
+    genreData: { genre: string; count: number }[];
+    ratingData: { month: string; averageRating: number }[];
+  }> {
+    const watchedItems = await this.getWatchedItems(userId);
+    
+    // Group by month for movies watched over time
+    const monthlyMap = new Map<string, number>();
+    const ratingMonthlyMap = new Map<string, { total: number; count: number }>();
+    const genreMap = new Map<string, number>();
+
+    watchedItems.forEach(item => {
+      const date = new Date(item.finishedAt);
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      
+      // Count movies per month
+      monthlyMap.set(monthKey, (monthlyMap.get(monthKey) || 0) + 1);
+      
+      // Collect ratings per month
+      if (item.rating) {
+        const existing = ratingMonthlyMap.get(monthKey) || { total: 0, count: 0 };
+        existing.total += item.rating;
+        existing.count += 1;
+        ratingMonthlyMap.set(monthKey, existing);
+      }
+      
+      // Count genres
+      if (item.movie.genres) {
+        item.movie.genres.forEach(genre => {
+          genreMap.set(genre, (genreMap.get(genre) || 0) + 1);
+        });
+      }
+    });
+
+    // Convert to chart data arrays
+    const monthlyData = Array.from(monthlyMap.entries())
+      .map(([month, count]) => ({ month, count }))
+      .sort((a, b) => a.month.localeCompare(b.month));
+
+    const ratingData = Array.from(ratingMonthlyMap.entries())
+      .map(([month, data]) => ({ 
+        month, 
+        averageRating: Math.round((data.total / data.count) * 100) / 100 
+      }))
+      .sort((a, b) => a.month.localeCompare(b.month));
+
+    const genreData = Array.from(genreMap.entries())
+      .map(([genre, count]) => ({ genre, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 7); // Top 7 genres
+
+    return {
+      monthlyData,
+      genreData,
+      ratingData
+    };
   }
 
   async getViewingStats(userId: string): Promise<{

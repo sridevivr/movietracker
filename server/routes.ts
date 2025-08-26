@@ -328,6 +328,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Charts data endpoint
+  app.get("/api/charts/:userId", async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const chartData = await storage.getChartData(userId);
+      res.json(chartData);
+    } catch (error) {
+      console.error("Failed to get chart data:", error);
+      res.status(500).json({ error: "Failed to get chart data" });
+    }
+  });
+
   // Rewatch endpoints
   app.post("/api/rewatches", async (req, res) => {
     try {
