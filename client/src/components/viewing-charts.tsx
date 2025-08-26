@@ -10,14 +10,27 @@ interface ViewingChartsProps {
 const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#8dd1e1', '#d084d0', '#ffb347'];
 
 export default function ViewingCharts({ userId }: ViewingChartsProps) {
-  const { data: chartData, isLoading } = useQuery({
+  const { data: chartData, isLoading, error } = useQuery({
     queryKey: ["/api/charts", userId],
     queryFn: async () => {
       const res = await fetch(`/api/charts/${userId}`);
       if (!res.ok) throw new Error('Failed to fetch chart data');
       return res.json();
-    }
+    },
+    refetchOnWindowFocus: true, // Refresh when window regains focus
+    staleTime: 0 // Always fetch fresh data
   });
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <h2 className="text-2xl font-bold text-gray-900 mb-6">Viewing Analytics</h2>
+        <div className="text-red-600 p-4 bg-red-50 rounded">
+          Error loading charts: {error.message}
+        </div>
+      </div>
+    );
+  }
 
   if (isLoading || !chartData) {
     return (
@@ -35,6 +48,9 @@ export default function ViewingCharts({ userId }: ViewingChartsProps) {
       </div>
     );
   }
+
+  // Debug: Check if we have data
+  console.log('Chart data:', chartData);
 
   return (
     <div className="space-y-6">
