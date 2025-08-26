@@ -242,8 +242,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/watched/:id", async (req, res) => {
     try {
       const { id } = req.params;
-      const { rating, notes } = req.body;
-      await storage.updateWatchedItem(id, rating, notes);
+      const { rating, notes, finishedAt } = req.body;
+      await storage.updateWatchedItem(id, rating, notes, finishedAt);
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "Failed to update watched item" });

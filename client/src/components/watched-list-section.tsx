@@ -9,6 +9,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { getImageUrl, formatReleaseDate } from "@/lib/tmdb";
 import RatingStars from "./rating-stars";
 import RewatchModal from "./rewatch-modal";
+import EditWatchedModal from "./edit-watched-modal";
 
 interface WatchedListSectionProps {
   userId: string;
@@ -18,7 +19,9 @@ export default function WatchedListSection({ userId }: WatchedListSectionProps) 
   const [filterType, setFilterType] = useState("all");
   const [sortBy, setSortBy] = useState("title");
   const [showRewatchModal, setShowRewatchModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [selectedMovieId, setSelectedMovieId] = useState<string | null>(null);
+  const [selectedWatchedItem, setSelectedWatchedItem] = useState<any>(null);
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -99,6 +102,11 @@ export default function WatchedListSection({ userId }: WatchedListSectionProps) 
 
   const handleMoveToList = (movieId: string, targetList: string) => {
     moveToListMutation.mutate({ movieId, targetList });
+  };
+
+  const handleEditItem = (item: any) => {
+    setSelectedWatchedItem(item);
+    setShowEditModal(true);
   };
 
   return (
@@ -183,7 +191,7 @@ export default function WatchedListSection({ userId }: WatchedListSectionProps) 
                             </span>
                           )}
                           <span data-testid={`text-watched-date-${item.movie.id}`}>
-                            Watched on: {new Date(item.watchedAt).toLocaleDateString()}
+                            Finished: {new Date(item.finishedAt || item.watchedAt).toLocaleDateString()}
                           </span>
                         </div>
                         <div className="flex items-center mt-2">
@@ -191,7 +199,7 @@ export default function WatchedListSection({ userId }: WatchedListSectionProps) 
                           <div data-testid={`rating-${item.movie.id}`}>
                             <RatingStars 
                               rating={item.rating}
-                              onRatingChange={(rating) => updateRatingMutation.mutate({ id: item.id, rating })}
+                              readonly={true}
                               size="sm"
                             />
                           </div>
@@ -233,6 +241,15 @@ export default function WatchedListSection({ userId }: WatchedListSectionProps) 
                       <Button
                         size="sm"
                         variant="outline"
+                        onClick={() => handleEditItem(item)}
+                        data-testid={`button-edit-${item.movie.id}`}
+                      >
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                      
+                      <Button
+                        size="sm"
+                        variant="outline"
                         className="text-red-600 hover:bg-red-50"
                         onClick={() => removeFromWatchedMutation.mutate(item.movie.id)}
                         disabled={removeFromWatchedMutation.isPending}
@@ -263,6 +280,16 @@ export default function WatchedListSection({ userId }: WatchedListSectionProps) 
         }}
         userId={userId}
         movieId={selectedMovieId}
+      />
+
+      <EditWatchedModal
+        isOpen={showEditModal}
+        onClose={() => {
+          setShowEditModal(false);
+          setSelectedWatchedItem(null);
+        }}
+        userId={userId}
+        watchedItem={selectedWatchedItem}
       />
     </>
   );

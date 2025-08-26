@@ -27,7 +27,7 @@ export interface IStorage {
   // Watched Items
   getWatchedItems(userId: string, filterType?: string, sortBy?: string): Promise<(WatchedItem & { movie: Movie })[]>;
   addToWatched(item: InsertWatchedItem): Promise<WatchedItem>;
-  updateWatchedItem(id: string, rating?: number, notes?: string): Promise<void>;
+  updateWatchedItem(id: string, rating?: number, notes?: string, finishedAt?: string): Promise<void>;
   removeFromWatched(userId: string, movieId: string): Promise<void>;
 
   // Rewatches
@@ -210,13 +210,14 @@ export class MemStorage implements IStorage {
     return newItem;
   }
 
-  async updateWatchedItem(id: string, rating?: number, notes?: string): Promise<void> {
+  async updateWatchedItem(id: string, rating?: number, notes?: string, finishedAt?: string): Promise<void> {
     const item = this.watchedItems.get(id);
     if (item) {
       this.watchedItems.set(id, { 
         ...item, 
         ...(rating !== undefined && { rating }),
-        ...(notes !== undefined && { notes })
+        ...(notes !== undefined && { notes }),
+        ...(finishedAt !== undefined && { finishedAt: new Date(finishedAt), watchedAt: new Date(finishedAt) })
       });
     }
   }
