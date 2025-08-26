@@ -6,6 +6,10 @@ export interface TMDBSearchResult {
   posterPath: string | null;
   backdropPath: string | null;
   voteAverage: number;
+  runtime: number | null;
+  episodeRuntime: number | null;
+  totalSeasons: number | null;
+  totalEpisodes: number | null;
   type: 'movie' | 'tv';
   genres: string[];
 }

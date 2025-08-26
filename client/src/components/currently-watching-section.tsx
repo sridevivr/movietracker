@@ -105,9 +105,19 @@ export default function CurrentlyWatchingSection({ userId }: CurrentlyWatchingSe
                       <h4 className="font-medium text-gray-900" data-testid={`text-currently-watching-title-${item.movie.id}`}>
                         {item.movie.title}
                       </h4>
-                      <p className="text-sm text-gray-600" data-testid={`text-currently-watching-progress-${item.movie.id}`}>
-                        {item.progress || formatReleaseDate(item.movie.releaseDate)}
-                      </p>
+                      <div className="space-y-1">
+                        <p className="text-sm text-gray-600" data-testid={`text-currently-watching-progress-${item.movie.id}`}>
+                          {item.progress || formatReleaseDate(item.movie.releaseDate)}
+                        </p>
+                        {item.movie.runtime && (
+                          <p className="text-xs text-gray-500" data-testid={`text-currently-watching-runtime-${item.movie.id}`}>
+                            {item.movie.type === 'tv' 
+                              ? `${Math.floor(item.movie.runtime / 60)}h ${item.movie.runtime % 60}m total` 
+                              : `${item.movie.runtime}m`
+                            }
+                          </p>
+                        )}
+                      </div>
                     </div>
                   </div>
                   <div className="flex space-x-2">

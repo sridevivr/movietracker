@@ -186,9 +186,19 @@ export default function MovieSearch({ userId }: MovieSearchProps) {
                       <h4 className="font-semibold text-gray-900" data-testid={`text-title-${movie.tmdbId}`}>
                         {movie.title}
                       </h4>
-                      <p className="text-sm text-gray-600" data-testid={`text-year-${movie.tmdbId}`}>
-                        {formatReleaseDate(movie.releaseDate)} • {movie.type === 'movie' ? 'Movie' : 'TV Show'}
-                      </p>
+                      <div className="space-y-1">
+                        <p className="text-sm text-gray-600" data-testid={`text-year-${movie.tmdbId}`}>
+                          {formatReleaseDate(movie.releaseDate)} • {movie.type === 'movie' ? 'Movie' : 'TV Show'}
+                        </p>
+                        {movie.runtime && (
+                          <p className="text-xs text-gray-500" data-testid={`text-runtime-${movie.tmdbId}`}>
+                            {movie.type === 'tv' 
+                              ? `${Math.floor(movie.runtime / 60)}h ${movie.runtime % 60}m total` 
+                              : `${movie.runtime}m`
+                            }
+                          </p>
+                        )}
+                      </div>
                       <p className="text-sm text-gray-500 mt-1 line-clamp-2" data-testid={`text-overview-${movie.tmdbId}`}>
                         {movie.overview || 'No description available.'}
                       </p>
