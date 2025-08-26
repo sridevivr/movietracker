@@ -243,7 +243,11 @@ export class MemStorage implements IStorage {
 
   async addRewatch(rewatch: InsertRewatch): Promise<Rewatch> {
     const id = randomUUID();
-    const newRewatch: Rewatch = { ...rewatch, id };
+    const newRewatch: Rewatch = { 
+      ...rewatch, 
+      id,
+      watchedAt: rewatch.watchedAt instanceof Date ? rewatch.watchedAt : new Date(rewatch.watchedAt)
+    };
     this.rewatches.set(id, newRewatch);
     return newRewatch;
   }
