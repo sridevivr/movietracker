@@ -184,7 +184,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get or create movie
   app.post("/api/movies", async (req, res) => {
     try {
+      console.log("Received movie data:", JSON.stringify(req.body, null, 2));
       const movieData = insertMovieSchema.parse(req.body);
+      console.log("Parsed movie data:", JSON.stringify(movieData, null, 2));
       
       // Check if movie already exists
       let movie = await storage.getMovieByTmdbId(movieData.tmdbId);
@@ -194,7 +196,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json(movie);
     } catch (error) {
-      res.status(400).json({ error: "Invalid movie data" });
+      console.error("Movie validation error:", error);
+      res.status(400).json({ error: "Invalid movie data", details: error.message || error });
     }
   });
 
