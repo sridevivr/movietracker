@@ -37,8 +37,11 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
     setIsLoading(true);
     try {
       const response = await apiRequest("POST", "/api/auth/login", loginData);
+      console.log("Login response:", response);
+      const userData = (response as any).user;
+      console.log("User data from login:", userData);
       toast({ title: "Welcome back!" });
-      onAuthSuccess((response as any).user);
+      onAuthSuccess(userData);
       onClose();
     } catch (error) {
       toast({ title: "Login failed", description: "Please check your credentials", variant: "destructive" });
@@ -69,8 +72,11 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
         username: signupData.username,
         password: signupData.password
       });
+      console.log("Register response:", response);
+      const userData = (response as any).user;
+      console.log("User data from register:", userData);
       toast({ title: "Account created successfully!" });
-      onAuthSuccess((response as any).user);
+      onAuthSuccess(userData);
       onClose();
     } catch (error) {
       toast({ title: "Signup failed", description: "Username might already be taken", variant: "destructive" });
