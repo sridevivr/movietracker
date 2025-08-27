@@ -3,6 +3,8 @@ import { createServer, type Server } from "http";
 import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import session from "express-session";
+import ConnectPgSimple from "connect-pg-simple";
+import { pool } from "./db";
 import { storage } from "./storage";
 import { insertMovieSchema, insertWatchlistItemSchema, insertCurrentlyWatchingSchema, insertWatchedItemSchema, insertRewatchSchema, insertUserSchema } from "@shared/schema";
 import bcrypt from "bcrypt";
@@ -12,18 +14,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Trust proxy for proper session handling behind Replit proxy
   app.set('trust proxy', 1);
   
-  // Session setup with MemoryStore for development
+  // Session setup with PostgreSQL store for production compatibility
+  const PgSession = ConnectPgSimple(session);
+  
   app.use(session({
+    store: new PgSession({
+      pool: pool,
+      tableName: 'session',
+      createTableIfMissing: true,
+    }),
     secret: process.env.SESSION_SECRET || 'your-secret-key',
     resave: false,
-    saveUninitialized: true, // Changed to true for debugging
+    saveUninitialized: false,
     cookie: { 
-      secure: false,
+      secure: process.env.NODE_ENV === 'production',
       httpOnly: true,
       maxAge: 24 * 60 * 60 * 1000,
       sameSite: 'lax'
     },
-    name: 'movie-tracker-session' // Add explicit session name
+    name: 'movie-tracker-session'
   }));
 
   // Initialize Passport
