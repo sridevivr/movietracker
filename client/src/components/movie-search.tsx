@@ -124,16 +124,16 @@ export default function MovieSearch({ userId }: MovieSearchProps) {
   };
 
   return (
-    <Card className="mb-8">
-      <CardContent className="p-6">
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">Search Movies</h2>
+    <Card>
+      <CardContent className="p-4 sm:p-6">
+        <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-3 sm:mb-4">Search Movies</h2>
         
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           <div>
             <label htmlFor="title-search" className="block text-sm font-medium text-gray-700 mb-2">
               Search by Title:
             </label>
-            <div className="flex space-x-3">
+            <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
               <Input
                 id="title-search"
                 type="text"
@@ -141,16 +141,16 @@ export default function MovieSearch({ userId }: MovieSearchProps) {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyPress={handleKeyPress}
-                className="flex-1"
+                className="flex-1 h-12 sm:h-10 text-base sm:text-sm"
                 data-testid="input-search-title"
               />
               <Button 
                 onClick={handleSearch}
                 disabled={!searchQuery.trim() || isLoading}
-                className="bg-primary hover:bg-blue-700"
+                className="bg-primary hover:bg-blue-700 h-12 sm:h-10 px-6 text-base sm:text-sm touch-manipulation"
                 data-testid="button-search"
               >
-                <Search className="w-4 h-4 mr-2" />
+                <Search className="w-5 h-5 sm:w-4 sm:h-4 mr-2" />
                 Search
               </Button>
             </div>
@@ -158,8 +158,8 @@ export default function MovieSearch({ userId }: MovieSearchProps) {
         </div>
 
         {/* Search Results */}
-        <div className="mt-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-3">Search Results:</h3>
+        <div className="mt-4 sm:mt-6">
+          <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-3">Search Results:</h3>
           
           {isLoading && (
             <div className="text-center py-8">
@@ -174,20 +174,20 @@ export default function MovieSearch({ userId }: MovieSearchProps) {
                 searchResults.map((movie) => (
                   <div 
                     key={`${movie.type}-${movie.tmdbId}`}
-                    className="flex items-center space-x-4 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                    className="flex items-start space-x-3 sm:space-x-4 p-3 sm:p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
                     data-testid={`card-search-result-${movie.tmdbId}`}
                   >
                     <img 
                       src={getImageUrl(movie.posterPath, 'w92')}
                       alt={`${movie.title} poster`}
-                      className="w-16 h-24 object-cover rounded"
+                      className="w-12 h-18 sm:w-16 sm:h-24 object-cover rounded flex-shrink-0"
                     />
-                    <div className="flex-1">
-                      <h4 className="font-semibold text-gray-900" data-testid={`text-title-${movie.tmdbId}`}>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-semibold text-sm sm:text-base text-gray-900 line-clamp-2" data-testid={`text-title-${movie.tmdbId}`}>
                         {movie.title}
                       </h4>
-                      <div className="space-y-1">
-                        <p className="text-sm text-gray-600" data-testid={`text-year-${movie.tmdbId}`}>
+                      <div className="space-y-1 mt-1">
+                        <p className="text-xs sm:text-sm text-gray-600" data-testid={`text-year-${movie.tmdbId}`}>
                           {formatReleaseDate(movie.releaseDate)} • {movie.type === 'movie' ? 'Movie' : 'TV Show'}
                         </p>
                         {movie.runtime && (
@@ -199,11 +199,38 @@ export default function MovieSearch({ userId }: MovieSearchProps) {
                           </p>
                         )}
                       </div>
-                      <p className="text-sm text-gray-500 mt-1 line-clamp-2" data-testid={`text-overview-${movie.tmdbId}`}>
+                      <p className="text-xs sm:text-sm text-gray-500 mt-1 line-clamp-2 hidden sm:block" data-testid={`text-overview-${movie.tmdbId}`}>
                         {movie.overview || 'No description available.'}
                       </p>
+                      <div className="mt-2 sm:hidden">
+                        <Select onValueChange={(value) => handleStatusChange(movie, value)}>
+                          <SelectTrigger className="w-full h-9 text-xs touch-manipulation" data-testid={`select-status-${movie.tmdbId}`}>
+                            <SelectValue placeholder="Add to..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="watchlist">
+                              <div className="flex items-center">
+                                <Plus className="w-4 h-4 mr-2" />
+                                Want to Watch
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="currently-watching">
+                              <div className="flex items-center">
+                                <Play className="w-4 h-4 mr-2" />
+                                Currently Watching
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="watched">
+                              <div className="flex items-center">
+                                <Check className="w-4 h-4 mr-2" />
+                                Watched
+                              </div>
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
-                    <div className="flex space-x-2">
+                    <div className="hidden sm:flex space-x-2 flex-shrink-0">
                       <Select onValueChange={(value) => handleStatusChange(movie, value)}>
                         <SelectTrigger className="w-40" data-testid={`select-status-${movie.tmdbId}`}>
                           <SelectValue placeholder="Add to..." />

@@ -106,40 +106,54 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-6xl mx-auto px-4 py-4">
+      <header className="bg-white shadow-sm border-b sticky top-0 z-10">
+        <div className="max-w-6xl mx-auto px-3 sm:px-4 py-3 sm:py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <Film className="text-primary text-2xl" />
-              <h1 className="text-2xl font-bold text-gray-900">My Movie Tracker</h1>
+            <div className="flex items-center space-x-2 sm:space-x-3">
+              <Film className="text-primary text-xl sm:text-2xl" />
+              <h1 className="text-lg sm:text-2xl font-bold text-gray-900 hidden sm:block">My Movie Tracker</h1>
+              <h1 className="text-lg font-bold text-gray-900 sm:hidden">Movies</h1>
             </div>
-            <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-600 flex items-center">
+            <div className="flex items-center space-x-2 sm:space-x-4">
+              <div className="hidden sm:flex items-center">
+                <span className="text-sm text-gray-600 flex items-center">
+                  {user.profileImageUrl ? (
+                    <img 
+                      src={user.profileImageUrl} 
+                      alt="Profile" 
+                      className="w-5 h-5 rounded-full object-cover mr-1"
+                    />
+                  ) : (
+                    <User className="w-4 h-4 mr-1" />
+                  )}
+                  Welcome, <span className="font-medium ml-1">{user.displayName || user.username || user.email || 'User'}</span>
+                </span>
+              </div>
+              <div className="sm:hidden flex items-center">
                 {user.profileImageUrl ? (
                   <img 
                     src={user.profileImageUrl} 
                     alt="Profile" 
-                    className="w-5 h-5 rounded-full object-cover mr-1"
+                    className="w-8 h-8 rounded-full object-cover mr-2"
                   />
                 ) : (
-                  <User className="w-4 h-4 mr-1" />
+                  <User className="w-6 h-6 mr-2 text-gray-600" />
                 )}
-                Welcome, <span className="font-medium ml-1">{user.displayName || user.username || user.email || 'User'}</span>
-              </span>
+              </div>
               <button 
-                className="text-gray-600 hover:text-gray-900"
+                className="text-gray-600 hover:text-gray-900 p-2 sm:p-1 touch-manipulation"
                 onClick={handleLogout}
                 data-testid="button-sign-out"
                 title="Sign out"
               >
-                <LogOut className="w-5 h-5" />
+                <LogOut className="w-6 h-6 sm:w-5 sm:h-5" />
               </button>
             </div>
           </div>
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 py-8">
+      <main className="max-w-6xl mx-auto px-3 sm:px-4 py-4 sm:py-8 space-y-4 sm:space-y-6">
         {/* Search Section */}
         <MovieSearch userId={user.id} />
 
@@ -149,14 +163,13 @@ export default function Home() {
         {/* Viewing Charts */}
         <ViewingCharts userId={user.id} />
 
-        <div className="grid md:grid-cols-2 gap-8 mb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
           {/* Watchlist */}
           <WatchlistSection userId={user.id} />
 
           {/* Currently Watching */}
           <CurrentlyWatchingSection userId={user.id} />
         </div>
-
 
         {/* Watched List */}
         <WatchedListSection userId={user.id} />
