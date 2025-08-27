@@ -112,16 +112,16 @@ export default function WatchedListSection({ userId }: WatchedListSectionProps) 
   return (
     <>
       <Card>
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-semibold text-gray-900 flex items-center">
+        <CardContent className="p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6 space-y-3 sm:space-y-0">
+            <h2 className="text-lg sm:text-xl font-semibold text-gray-900 flex items-center">
               <CheckSquare className="w-5 h-5 mr-2 text-success" />
               My Watched List:
             </h2>
             
-            <div className="flex space-x-4">
+            <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
               <Select value={filterType} onValueChange={setFilterType}>
-                <SelectTrigger className="w-32" data-testid="select-filter-type">
+                <SelectTrigger className="w-full sm:w-32 h-10 text-sm touch-manipulation" data-testid="select-filter-type">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -132,7 +132,7 @@ export default function WatchedListSection({ userId }: WatchedListSectionProps) 
               </Select>
               
               <Select value={sortBy} onValueChange={setSortBy}>
-                <SelectTrigger className="w-40" data-testid="select-sort-by">
+                <SelectTrigger className="w-full sm:w-40 h-10 text-sm touch-manipulation" data-testid="select-sort-by">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -159,20 +159,20 @@ export default function WatchedListSection({ userId }: WatchedListSectionProps) 
                 watchedList.map((item: any) => (
                   <div 
                     key={item.id}
-                    className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                    className="flex flex-col sm:flex-row sm:items-center p-3 sm:p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors space-y-3 sm:space-y-0"
                     data-testid={`watched-item-${item.movie.id}`}
                   >
-                    <div className="flex items-center space-x-4">
+                    <div className="flex items-start space-x-3 sm:space-x-4 flex-1">
                       <img 
                         src={getImageUrl(item.movie.posterPath, 'w92')}
                         alt={`${item.movie.title} poster`}
-                        className="w-12 h-18 object-cover rounded"
+                        className="w-12 h-18 sm:w-12 sm:h-18 object-cover rounded flex-shrink-0"
                       />
-                      <div className="flex-1">
-                        <h4 className="font-semibold text-gray-900" data-testid={`text-watched-title-${item.movie.id}`}>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-semibold text-sm sm:text-base text-gray-900 line-clamp-2" data-testid={`text-watched-title-${item.movie.id}`}>
                           {item.movie.title}
                         </h4>
-                        <div className="flex items-center space-x-4 text-sm text-gray-600 mt-1">
+                        <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm text-gray-600 mt-1">
                           <span data-testid={`text-watched-year-${item.movie.id}`}>
                             {formatReleaseDate(item.movie.releaseDate)}
                           </span>
@@ -190,13 +190,27 @@ export default function WatchedListSection({ userId }: WatchedListSectionProps) 
                               }
                             </span>
                           )}
-                          <span data-testid={`text-watched-date-${item.movie.id}`}>
-                            Finished: {new Date(item.finishedAt || item.watchedAt).toLocaleDateString()}
-                          </span>
                         </div>
+                        <div className="text-xs sm:text-sm text-gray-600 mt-1" data-testid={`text-watched-date-${item.movie.id}`}>
+                          Finished: {new Date(item.finishedAt || item.watchedAt).toLocaleDateString()}
+                        </div>
+                        
+                        {/* Rating */}
+                        <div className="flex items-center space-x-2 mt-2">
+                          <span className="text-xs sm:text-sm text-gray-600">Your Rating:</span>
+                          <div data-testid={`rating-${item.movie.id}`}>
+                            <RatingStars 
+                              rating={item.rating}
+                              readonly={true}
+                              size="sm"
+                            />
+                          </div>
+                        </div>
+                        
+                        {/* Rewatches */}
                         {item.rewatches && item.rewatches.length > 0 && (
-                          <div className="mt-2 p-2 bg-blue-50 rounded-lg border-l-4 border-blue-400">
-                            <div className="text-sm font-medium text-blue-800">Rewatches:</div>
+                          <div className="mt-2 p-2 bg-blue-50 rounded-lg border-l-2 sm:border-l-4 border-blue-400">
+                            <div className="text-xs sm:text-sm font-medium text-blue-800">Rewatches:</div>
                             <div className="text-xs text-blue-600 space-y-1">
                               {item.rewatches.map((rewatch: any, index: number) => (
                                 <div key={rewatch.id || index}>
@@ -206,20 +220,71 @@ export default function WatchedListSection({ userId }: WatchedListSectionProps) 
                             </div>
                           </div>
                         )}
-                        <div className="flex items-center mt-2">
-                          <span className="text-sm text-gray-600 mr-2">Your Rating:</span>
-                          <div data-testid={`rating-${item.movie.id}`}>
-                            <RatingStars 
-                              rating={item.rating}
-                              readonly={true}
-                              size="sm"
-                            />
-                          </div>
-                        </div>
                       </div>
                     </div>
                     
-                    <div className="flex items-center space-x-2">
+                    {/* Action buttons - Mobile layout */}
+                    <div className="flex flex-col sm:hidden space-y-2 w-full">
+                      <div className="grid grid-cols-2 gap-2">
+                        <Button
+                          size="sm"
+                          className="bg-primary hover:bg-blue-700 h-10 text-xs touch-manipulation"
+                          onClick={() => handleLogRewatch(item.movie.id)}
+                          data-testid={`button-log-rewatch-${item.movie.id}`}
+                        >
+                          <RotateCcw className="w-4 h-4 mr-1" />
+                          Log Rewatch
+                        </Button>
+                        
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-10 text-xs touch-manipulation"
+                          onClick={() => handleEditItem(item)}
+                          data-testid={`button-edit-${item.movie.id}`}
+                        >
+                          <Edit className="w-4 h-4 mr-1" />
+                          Edit
+                        </Button>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-2">
+                        <Select onValueChange={(value) => handleMoveToList(item.movie.id, value)}>
+                          <SelectTrigger className="h-10 text-xs touch-manipulation" data-testid={`select-move-${item.movie.id}`}>
+                            <SelectValue placeholder="Move to..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="watchlist">
+                              <div className="flex items-center">
+                                <Plus className="w-4 h-4 mr-2" />
+                                Want to Watch
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="currently-watching">
+                              <div className="flex items-center">
+                                <Play className="w-4 h-4 mr-2" />
+                                Currently Watching
+                              </div>
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                        
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-red-600 hover:bg-red-50 h-10 text-xs touch-manipulation"
+                          onClick={() => removeFromWatchedMutation.mutate(item.movie.id)}
+                          disabled={removeFromWatchedMutation.isPending}
+                          data-testid={`button-remove-watched-${item.movie.id}`}
+                        >
+                          <Trash2 className="w-4 h-4 mr-1" />
+                          Delete
+                        </Button>
+                      </div>
+                    </div>
+                    
+                    {/* Action buttons - Desktop layout */}
+                    <div className="hidden sm:flex items-center space-x-2 flex-shrink-0">
                       <Button
                         size="sm"
                         className="bg-primary hover:bg-blue-700"
