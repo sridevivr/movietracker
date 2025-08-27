@@ -7,7 +7,6 @@ import WatchlistSection from "@/components/watchlist-section";
 import CurrentlyWatchingSection from "@/components/currently-watching-section";
 import WatchedListSection from "@/components/watched-list-section";
 import AuthModal from "@/components/auth-modal";
-import { TrendingContent } from "@/components/trending-content";
 import { Button } from "@/components/ui/button";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -149,9 +148,6 @@ export default function Home() {
 
         {/* Viewing Charts */}
         <ViewingCharts userId={user.id} />
-
-        {/* Trending & Popular Content */}
-        <TrendingContent userId={user.id} />
 
         <div className="grid md:grid-cols-2 gap-8 mb-8">
           {/* Watchlist */}
