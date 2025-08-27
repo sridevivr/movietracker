@@ -7,11 +7,12 @@ echo "Starting production build..."
 echo "Building frontend..."
 npm run build
 
-# Check if dist/public exists and copy to the expected public directory
+# Check if dist/public exists and copy to the expected server/public directory
 if [ -d "dist/public" ]; then
     echo "Copying static files to correct location..."
-    cp -r dist/public/* public/ 2>/dev/null || mkdir -p public && cp -r dist/public/* public/
-    echo "Static files copied successfully"
+    mkdir -p server/public
+    cp -r dist/public/* server/public/ 2>/dev/null || true
+    echo "Static files copied to server/public successfully"
 else
     echo "Warning: dist/public directory not found"
 fi
