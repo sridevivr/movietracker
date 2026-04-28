@@ -27,13 +27,13 @@ export interface IStorage {
   // Currently Watching
   getCurrentlyWatching(userId: string): Promise<(CurrentlyWatching & { movie: Movie })[]>;
   addToCurrentlyWatching(item: InsertCurrentlyWatching): Promise<CurrentlyWatching>;
-  updateProgress(id: string, progress: string): Promise<void>;
+  updateProgress(id: string, userId: string, progress: string): Promise<void>;
   removeFromCurrentlyWatching(userId: string, movieId: string): Promise<void>;
 
   // Watched Items
   getWatchedItems(userId: string, filterType?: string, sortBy?: string): Promise<(WatchedItem & { movie: Movie })[]>;
   addToWatched(item: InsertWatchedItem): Promise<WatchedItem>;
-  updateWatchedItem(id: string, rating?: number, notes?: string, finishedAt?: string): Promise<void>;
+  updateWatchedItem(id: string, userId: string, rating?: number, notes?: string, finishedAt?: string): Promise<void>;
   removeFromWatched(userId: string, movieId: string): Promise<void>;
 
   // Rewatches
@@ -204,9 +204,9 @@ export class MemStorage implements IStorage {
     return newItem;
   }
 
-  async updateProgress(id: string, progress: string): Promise<void> {
+  async updateProgress(id: string, userId: string, progress: string): Promise<void> {
     const item = this.currentlyWatching.get(id);
-    if (item) {
+    if (item && item.userId === userId) {
       this.currentlyWatching.set(id, { ...item, progress });
     }
   }
@@ -272,11 +272,11 @@ export class MemStorage implements IStorage {
     return newItem;
   }
 
-  async updateWatchedItem(id: string, rating?: number, notes?: string, finishedAt?: string): Promise<void> {
+  async updateWatchedItem(id: string, userId: string, rating?: number, notes?: string, finishedAt?: string): Promise<void> {
     const item = this.watchedItems.get(id);
-    if (item) {
-      this.watchedItems.set(id, { 
-        ...item, 
+    if (item && item.userId === userId) {
+      this.watchedItems.set(id, {
+        ...item,
         ...(rating !== undefined && { rating }),
         ...(notes !== undefined && { notes }),
         ...(finishedAt !== undefined && { finishedAt: new Date(finishedAt), watchedAt: new Date(finishedAt) })
@@ -548,8 +548,10 @@ class PostgresStorage implements IStorage {
     return result[0];
   }
 
-  async updateProgress(id: string, progress: string): Promise<void> {
-    await this.db.update(currentlyWatching).set({ progress }).where(eq(currentlyWatching.id, id));
+  async updateProgress(id: string, userId: string, progress: string): Promise<void> {
+    await this.db.update(currentlyWatching).set({ progress }).where(
+      and(eq(currentlyWatching.id, id), eq(currentlyWatching.userId, userId))
+    );
   }
 
   async removeFromCurrentlyWatching(userId: string, movieId: string): Promise<void> {
@@ -604,7 +606,7 @@ class PostgresStorage implements IStorage {
     return result[0];
   }
 
-  async updateWatchedItem(id: string, rating?: number, notes?: string, finishedAt?: string): Promise<void> {
+  async updateWatchedItem(id: string, userId: string, rating?: number, notes?: string, finishedAt?: string): Promise<void> {
     const updateData: any = {};
     if (rating !== undefined) updateData.rating = rating;
     if (notes !== undefined) updateData.notes = notes;
@@ -613,7 +615,9 @@ class PostgresStorage implements IStorage {
       updateData.watchedAt = new Date(finishedAt);
     }
 
-    await this.db.update(watchedItems).set(updateData).where(eq(watchedItems.id, id));
+    await this.db.update(watchedItems).set(updateData).where(
+      and(eq(watchedItems.id, id), eq(watchedItems.userId, userId))
+    );
   }
 
   async removeFromWatched(userId: string, movieId: string): Promise<void> {

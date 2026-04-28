@@ -17,13 +17,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Session setup with PostgreSQL store for production compatibility
   const PgSession = ConnectPgSimple(session);
   
+  if (!process.env.SESSION_SECRET) {
+    throw new Error("SESSION_SECRET environment variable must be set");
+  }
+
   app.use(session({
     store: new PgSession({
       pool: pool,
       tableName: 'session',
       createTableIfMissing: true,
     }),
-    secret: process.env.SESSION_SECRET || 'your-secret-key',
+    secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
     cookie: { 
@@ -53,12 +57,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  const requireAuth = (req: Request, res: Response, next: NextFunction) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+    next();
+  };
+
+  // Verifies that the authenticated user owns the resource identified by :userId
+  const requireOwner = (req: Request, res: Response, next: NextFunction) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+    const user = req.user as any;
+    if (req.params.userId !== user.id) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+    next();
+  };
+
   // Google OAuth Strategy
   if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
     passport.use(new GoogleStrategy({
       clientID: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      callbackURL: "https://movie-tracker-sridevivr.replit.app/api/auth/google/callback"
+      callbackURL: process.env.GOOGLE_CALLBACK_URL || "/api/auth/google/callback"
     }, async (accessToken, refreshToken, profile, done) => {
       try {
         // Check if user already exists with this Google ID
@@ -208,7 +231,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Search movies via TMDB API
-  app.get("/api/search", async (req, res) => {
+  app.get("/api/search", requireAuth, async (req, res) => {
     try {
       const { query } = req.query;
       if (!query || typeof query !== 'string') {
@@ -339,7 +362,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get or create movie
-  app.post("/api/movies", async (req, res) => {
+  app.post("/api/movies", requireAuth, async (req, res) => {
     try {
       const movieData = insertMovieSchema.parse(req.body);
       
@@ -357,7 +380,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Watchlist endpoints
-  app.get("/api/watchlist/:userId", async (req, res) => {
+  app.get("/api/watchlist/:userId", requireOwner, async (req, res) => {
     try {
       const { userId } = req.params;
       const watchlist = await storage.getWatchlist(userId);
@@ -367,8 +390,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/watchlist", async (req, res) => {
+  app.post("/api/watchlist", requireAuth, async (req, res) => {
     try {
+      req.body.userId = (req.user as any).id;
       const data = insertWatchlistItemSchema.parse(req.body);
       const item = await storage.addToWatchlist(data);
       res.json(item);
@@ -377,7 +401,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/watchlist/:userId/:movieId", async (req, res) => {
+  app.delete("/api/watchlist/:userId/:movieId", requireOwner, async (req, res) => {
     try {
       const { userId, movieId } = req.params;
       await storage.removeFromWatchlist(userId, movieId);
@@ -388,7 +412,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Currently watching endpoints
-  app.get("/api/currently-watching/:userId", async (req, res) => {
+  app.get("/api/currently-watching/:userId", requireOwner, async (req, res) => {
     try {
       const { userId } = req.params;
       const currentlyWatching = await storage.getCurrentlyWatching(userId);
@@ -398,8 +422,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/currently-watching", async (req, res) => {
+  app.post("/api/currently-watching", requireAuth, async (req, res) => {
     try {
+      req.body.userId = (req.user as any).id;
       const data = insertCurrentlyWatchingSchema.parse(req.body);
       const item = await storage.addToCurrentlyWatching(data);
       res.json(item);
@@ -408,18 +433,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/currently-watching/:id/progress", async (req, res) => {
+  app.patch("/api/currently-watching/:id/progress", requireAuth, async (req, res) => {
     try {
       const { id } = req.params;
+      const userId = (req.user as any).id;
       const { progress } = req.body;
-      await storage.updateProgress(id, progress);
+      await storage.updateProgress(id, userId, progress);
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "Failed to update progress" });
     }
   });
 
-  app.delete("/api/currently-watching/:userId/:movieId", async (req, res) => {
+  app.delete("/api/currently-watching/:userId/:movieId", requireOwner, async (req, res) => {
     try {
       const { userId, movieId } = req.params;
       await storage.removeFromCurrentlyWatching(userId, movieId);
@@ -430,7 +456,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Watched items endpoints
-  app.get("/api/watched/:userId", async (req, res) => {
+  app.get("/api/watched/:userId", requireOwner, async (req, res) => {
     try {
       const { userId } = req.params;
       const { filterType, sortBy } = req.query;
@@ -454,8 +480,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/watched", async (req, res) => {
+  app.post("/api/watched", requireAuth, async (req, res) => {
     try {
+      req.body.userId = (req.user as any).id;
       const data = insertWatchedItemSchema.parse(req.body);
       const item = await storage.addToWatched(data);
       res.json(item);
@@ -464,18 +491,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/watched/:id", async (req, res) => {
+  app.patch("/api/watched/:id", requireAuth, async (req, res) => {
     try {
       const { id } = req.params;
+      const userId = (req.user as any).id;
       const { rating, notes, finishedAt } = req.body;
-      await storage.updateWatchedItem(id, rating, notes, finishedAt);
+      await storage.updateWatchedItem(id, userId, rating, notes, finishedAt);
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "Failed to update watched item" });
     }
   });
 
-  app.delete("/api/watched/:userId/:movieId", async (req, res) => {
+  app.delete("/api/watched/:userId/:movieId", requireOwner, async (req, res) => {
     try {
       const { userId, movieId } = req.params;
       await storage.removeFromWatched(userId, movieId);
@@ -486,7 +514,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Charts data endpoint
-  app.get("/api/charts/:userId", async (req, res) => {
+  app.get("/api/charts/:userId", requireOwner, async (req, res) => {
     try {
       const { userId } = req.params;
       const chartData = await storage.getChartData(userId);
@@ -498,8 +526,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Rewatch endpoints
-  app.post("/api/rewatches", async (req, res) => {
+  app.post("/api/rewatches", requireAuth, async (req, res) => {
     try {
+      req.body.userId = (req.user as any).id;
       const data = insertRewatchSchema.parse(req.body);
       const rewatch = await storage.addRewatch(data);
       res.json(rewatch);
@@ -510,7 +539,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Stats endpoint
-  app.get("/api/stats/:userId", async (req, res) => {
+  app.get("/api/stats/:userId", requireOwner, async (req, res) => {
     try {
       const { userId } = req.params;
       const stats = await storage.getViewingStats(userId);
