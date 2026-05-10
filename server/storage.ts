@@ -12,6 +12,7 @@ export interface IStorage {
   getUserByEmail(email: string): Promise<User | undefined>;
   getUserByGoogleId(googleId: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  getDemoUser(): Promise<User>;
 
   // Movies
   getMovie(id: string): Promise<Movie | undefined>;
@@ -106,7 +107,7 @@ export class MemStorage implements IStorage {
 
   async createUser(insertUser: InsertUser): Promise<User> {
     const id = randomUUID();
-    const user: User = { 
+    const user: User = {
       username: insertUser.username || null,
       password: insertUser.password || null,
       email: insertUser.email || null,
@@ -119,6 +120,10 @@ export class MemStorage implements IStorage {
     };
     this.users.set(id, user);
     return user;
+  }
+
+  async getDemoUser(): Promise<User> {
+    return Array.from(this.users.values())[0];
   }
 
   async getMovie(id: string): Promise<Movie | undefined> {
@@ -465,6 +470,17 @@ class PostgresStorage implements IStorage {
   async createUser(user: InsertUser): Promise<User> {
     const result = await this.db.insert(users).values(user).returning();
     return result[0];
+  }
+
+  async getDemoUser(): Promise<User> {
+    const result = await this.db.select().from(users).limit(1);
+    if (result[0]) return result[0];
+    // Create a demo user if none exist
+    const created = await this.db.insert(users).values({
+      username: "demo",
+      authProvider: "local",
+    }).returning();
+    return created[0];
   }
 
   async getMovie(id: string): Promise<Movie | undefined> {

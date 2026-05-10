@@ -1,61 +1,114 @@
-https://movie-tracker-sridevivr.replit.app/ 
-Technical Implementation:
-1.	What specific features did you build? (rating system, watchlists, search, etc.)
-•	Search for movies and TV shows using the TMDB API.
-•	Ability to select the content as: Watched, currently watching or want to watch
-•	Ability to switch from Want to watch to currently watching and then to want to watch.
-•	As soon as its marked as watched, the user has the ability to add “Date finished”, that way you know when you watched what. 
-•	You can also add a rating to the show/movie.
-•	You can also sort all the movies that you’ve watched based on Title, Date finished, Rating.
-•	We all have fallen into the trap of rewatching the same shows – “Comfort shows”. I wanted to know how many shows I’ve rewatched and how many times, and how often. So tracking those things.
-•	I wanted to track some viewing stats as well:
-1.	How many hours of television have I watched
-2.	How many hours of television am I spending on rewatching the same shows
-3.	What’s the genre I enjoy the most?
-4.	How do I rate what I watch?
-•	I had some visual analytics onboard as well:
-1.	What are my favourite genres ?
-2.	What does my rating trend look like?
-•	With respect to currently watching, I wanted to track the progress. For example, if it’s a tv show, I can enter the season and the episode that I’m currently stuck on.
-•	I also wanted to be able to sign in using Google (SSO).
-•	Used Firebase for backend
-2.	Which Google Cloud APIs did you use? (recommendations engine, data analysis, etc.)
-•	I added google authentication, so the user can easily sign in using google SSO. I didn’t want the user to have to create a new username and password, and have to remember that. 
-3.	How did you structure the data? (movies, shows, user ratings, viewing history)
-•	Currently watching
-•	Movies
-•	TV shows
-•	Rewatches
-•	Watchlist
-•	Watched
-•	Rating
-•	Dates
-4.	What AI-powered features specifically? (recommendation algorithm, genre analysis, etc.)
-•	I initially added a gemini API so I could write down what I remembered about the movie and I could get suggestions based on that. But I removed the feature. 
+# Movie Tracker
 
-Problem & User Experience:
-1.	What was missing from existing solutions? (Goodreads for books vs. your needs for movies/TV)
-•	I felt like there was no real solution. I set out to try and create an app that would automatically log what we watch through our streaming platforms, however I realized that the streaming platforms guard their APIs and data pretty heavily. I checked out letterboxd, but I felt like I couldn’t get the analytics that I wanted without paying.
-•	Plus I didn’t see anywhere I could log TV shows, which is what I watch a lot of, so do many people I know. 
-2.	Who was your target user? (just you, or did others test it?)
-•	My target user was just me when I created it, because I wanted a personal app to try a few things. But I think this is for mostly millennials and GenZ users who watch a lot of esoteric movies or tv shows. 
-3.	What specific pain points were you solving? (remembering what you watched, finding similar content, etc.)
-•	I was worried that I was spending way too much time rewatching tv shows, but I wanted to also see how many hours, what do I watch, and figure out why I gravitate towards this sort of content. 
-•	But also, many times when people ask me for recommendations, I have nothing to say or I say something generic – even when I’ve watched some pretty spectacular and weird tv shows and movies
-Impact & Metrics:
-1.	How many movies/shows have you logged?
-•	Over 50
-2.	What insights did the analytics reveal? 
-3.	How much time did it save you? (vs. manual tracking)
-4.	Any surprising discoveries from your data?
-•	My rewatching hours, as I thought was quite high. I thought my most watched genre would be comedy given that sitcoms are my comfort genre, but it turns out its crime-comedy. 
-Development Process:
-1.	How long did it take to build? 
-•	This took me two days to build.
-2.	What challenges did you face? 
-•	Figuring out what I needed to place first and where, what the first thing I want to see, what are the other things, and how to prioritize them.
-•	Figuring out the google authentication took some time
-3.	How did you iterate based on usage?
-•	I haven’t iterated it yet
+Track movies and TV shows you've watched, are watching, or want to watch.
 
+---
 
+## Restoring the project (migrating from Replit)
+
+Follow these steps in order. Each one is short.
+
+---
+
+### Step 1 — Get a free database (Neon)
+
+Neon is the same database provider Replit used, but you can have your own free account.
+
+1. Go to **[neon.tech](https://neon.tech)** and sign up (free, no credit card)
+2. Create a new project — name it anything (e.g. `movietracker`)
+3. On the project dashboard, click **"Connect"** and copy the **Connection string** — it looks like:
+   ```
+   postgresql://user:password@ep-xxx.us-east-2.aws.neon.tech/neondb?sslmode=require
+   ```
+   Keep this safe, you'll need it in the next steps.
+
+---
+
+### Step 2 — Get a TMDB API key
+
+1. Go to **[themoviedb.org](https://www.themoviedb.org/signup)** and create a free account
+2. Go to **Settings → API** and request an API key (choose "Developer")
+3. Copy the **API Key (v3 auth)**
+
+---
+
+### Step 3 — Set up the database tables
+
+Run this once to create all the tables in your new Neon database:
+
+```bash
+# Install dependencies first
+npm install
+
+# Create your env file
+cp .env.example .env
+# Now edit .env and fill in DATABASE_URL and TMDB_API_KEY
+
+# Push the schema to your database
+DATABASE_URL="your-neon-url" npm run db:push
+```
+
+---
+
+### Step 4 — Restore your data from CSV files
+
+You should have CSV files downloaded from Replit. Put them all in one folder, then run:
+
+```bash
+DATABASE_URL="your-neon-url" npx tsx scripts/import-csv.ts ./path/to/your/csv/folder
+```
+
+Expected CSV filenames (any that are missing are skipped):
+- `users.csv`
+- `movies.csv`
+- `watchlist_items.csv`
+- `currently_watching.csv`
+- `watched_items.csv`
+- `rewatches.csv`
+
+---
+
+### Step 5 — Run locally (optional)
+
+```bash
+# Make sure .env is filled in
+npm run dev
+# Open http://localhost:5000
+```
+
+---
+
+### Step 6 — Deploy to Render (free hosting)
+
+1. Go to **[render.com](https://render.com)** and sign up with your GitHub account
+2. Click **"New" → "Blueprint"** and connect your GitHub repo (`sridevivr/movietracker`)
+3. Render will detect `render.yaml` automatically — click **Apply**
+4. On the service page, go to **Environment** and fill in:
+   - `DATABASE_URL` → your Neon connection string from Step 1
+   - `TMDB_API_KEY` → your key from Step 2
+5. Click **Deploy** — your app will be live at a `*.onrender.com` URL in ~3 minutes
+
+---
+
+## Environment variables
+
+| Variable | Required | Description |
+|---|---|---|
+| `DATABASE_URL` | Yes | Neon PostgreSQL connection string |
+| `SESSION_SECRET` | Yes | Random secret for sessions (Render auto-generates this) |
+| `TMDB_API_KEY` | Yes | From themoviedb.org |
+| `GOOGLE_CLIENT_ID` | No | Only if you want Google login |
+| `GOOGLE_CLIENT_SECRET` | No | Only if you want Google login |
+| `GOOGLE_CALLBACK_URL` | No | Set to `https://your-app.onrender.com/api/auth/google/callback` |
+| `PORT` | No | Defaults to 5000 |
+
+---
+
+## Development
+
+```bash
+npm run dev      # Start dev server (frontend + backend)
+npm run build    # Build for production
+npm start        # Start production server
+npm run db:push  # Push schema changes to database
+```

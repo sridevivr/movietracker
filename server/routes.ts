@@ -58,7 +58,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     passport.use(new GoogleStrategy({
       clientID: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      callbackURL: "https://movie-tracker-sridevivr.replit.app/api/auth/google/callback"
+      callbackURL: process.env.GOOGLE_CALLBACK_URL || `${process.env.APP_URL || 'http://localhost:5000'}/api/auth/google/callback`
     }, async (accessToken, refreshToken, profile, done) => {
       try {
         // Check if user already exists with this Google ID
@@ -180,20 +180,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   );
 
-  // Get current user
-  app.get("/api/auth/user", (req, res) => {
-    if (req.isAuthenticated()) {
-      const user = req.user as any;
+  // Get current user — demo mode: always return the first user in the DB
+  app.get("/api/auth/user", async (req, res) => {
+    try {
+      const demoUserId = process.env.DEMO_USER_ID;
+      let user = demoUserId ? await storage.getUser(demoUserId) : undefined;
+
+      if (!user) {
+        // Fall back to first user in DB, or create one
+        user = await storage.getDemoUser();
+      }
+
       res.json({
         id: user.id,
         username: user.username,
         displayName: user.displayName,
-        email: user.email,
-        profileImageUrl: user.profileImageUrl,
-        authProvider: user.authProvider
       });
-    } else {
-      res.status(401).json({ error: "Not authenticated" });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get user" });
     }
   });
 
