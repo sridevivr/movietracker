@@ -58,7 +58,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     passport.use(new GoogleStrategy({
       clientID: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      callbackURL: "https://movie-tracker-sridevivr.replit.app/api/auth/google/callback"
+      callbackURL: process.env.GOOGLE_CALLBACK_URL || `${process.env.APP_URL || 'http://localhost:5000'}/api/auth/google/callback`
     }, async (accessToken, refreshToken, profile, done) => {
       try {
         // Check if user already exists with this Google ID
