@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
 import { BarChart3, TrendingUp, PieChart as PieChartIcon } from "lucide-react";
 
 interface ViewingChartsProps {
@@ -17,8 +17,8 @@ export default function ViewingCharts({ userId }: ViewingChartsProps) {
       if (!res.ok) throw new Error('Failed to fetch chart data');
       return res.json();
     },
-    refetchOnWindowFocus: true, // Refresh when window regains focus
-    staleTime: 0 // Always fetch fresh data
+    refetchOnWindowFocus: true,
+    staleTime: 0
   });
 
   if (error) {
@@ -26,7 +26,7 @@ export default function ViewingCharts({ userId }: ViewingChartsProps) {
       <div className="space-y-6">
         <h2 className="text-2xl font-bold text-gray-900 mb-6">Viewing Analytics</h2>
         <div className="text-red-600 p-4 bg-red-50 rounded">
-          Error loading charts: {error.message}
+          Error loading charts: {(error as Error).message}
         </div>
       </div>
     );
@@ -37,7 +37,7 @@ export default function ViewingCharts({ userId }: ViewingChartsProps) {
       <div className="space-y-6">
         <h2 className="text-2xl font-bold text-gray-900 mb-6">Viewing Analytics</h2>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {Array.from({ length: 3 }).map((_, i) => (
+          {Array.from({ length: 2 }).map((_, i) => (
             <Card key={i}>
               <CardContent className="p-6">
                 <div className="h-64 bg-gray-100 rounded animate-pulse"></div>
@@ -48,6 +48,9 @@ export default function ViewingCharts({ userId }: ViewingChartsProps) {
       </div>
     );
   }
+
+  const hasGenres = chartData.genreData && chartData.genreData.length > 0;
+  const hasRatings = chartData.movieRatings && chartData.movieRatings.length > 0;
 
   return (
     <div className="space-y-6">
@@ -66,71 +69,70 @@ export default function ViewingCharts({ userId }: ViewingChartsProps) {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={chartData.genreData}
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={100}
-                  fill="#8884d8"
-                  dataKey="count"
-                  label={(entry) => `${entry.genre} (${entry.count})`}
-                  labelLine={false}
-                >
-                  {chartData.genreData.map((entry: any, index: number) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
+            {hasGenres ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={chartData.genreData}
+                    cx="50%"
+                    cy="45%"
+                    outerRadius={90}
+                    dataKey="count"
+                  >
+                    {chartData.genreData.map((_: any, index: number) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(value: any, name: any, props: any) => [value, props.payload.genre]} />
+                  <Legend
+                    formatter={(_: any, entry: any) => entry.payload.genre}
+                    iconType="circle"
+                    iconSize={10}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-64 flex items-center justify-center text-gray-400">
+                No genre data yet — add some watched movies with genres.
+              </div>
+            )}
           </CardContent>
         </Card>
 
-        {/* Rating Trends */}
+        {/* Per-movie Ratings */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
               <TrendingUp className="w-5 h-5" />
-              <span>Rating Trends</span>
+              <span>Your Ratings</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <AreaChart data={chartData.ratingData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis 
-                  dataKey="month"
-                  fontSize={12}
-                  tickFormatter={(value) => {
-                    const [year, month] = value.split('-');
-                    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                    return `${monthNames[parseInt(month) - 1]} ${year.slice(-2)}`;
-                  }}
-                />
-                <YAxis 
-                  fontSize={12}
-                  domain={[0, 5]}
-                  tickFormatter={(value) => `${value}★`}
-                />
-                <Tooltip 
-                  labelFormatter={(value) => {
-                    const [year, month] = value.split('-');
-                    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                    return `${monthNames[parseInt(month) - 1]} ${year}`;
-                  }}
-                  formatter={(value: any) => [`${value}★`, "Average Rating"]}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="averageRating"
-                  stroke="#82ca9d"
-                  fill="#82ca9d"
-                  fillOpacity={0.3}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+            {hasRatings ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={chartData.movieRatings} margin={{ bottom: 60 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis
+                    dataKey="title"
+                    fontSize={11}
+                    angle={-40}
+                    textAnchor="end"
+                    interval={0}
+                  />
+                  <YAxis
+                    fontSize={12}
+                    domain={[0, 5]}
+                    tickFormatter={(v) => `${v}★`}
+                  />
+                  <Tooltip formatter={(value: any) => [`${value}★`, "Rating"]} />
+                  <Bar dataKey="rating" fill="#8884d8" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-64 flex items-center justify-center text-gray-400">
+                No ratings yet — rate your watched movies.
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

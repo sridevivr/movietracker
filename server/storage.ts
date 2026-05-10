@@ -328,31 +328,19 @@ export class MemStorage implements IStorage {
   async getChartData(userId: string): Promise<{
     monthlyData: { month: string; count: number }[];
     genreData: { genre: string; count: number }[];
-    ratingData: { month: string; averageRating: number }[];
+    movieRatings: { title: string; rating: number }[];
   }> {
     const watchedItems = await this.getWatchedItems(userId);
     
     // Group by month for movies watched over time
     const monthlyMap = new Map<string, number>();
-    const ratingMonthlyMap = new Map<string, { total: number; count: number }>();
     const genreMap = new Map<string, number>();
 
     watchedItems.forEach(item => {
       const date = new Date(item.finishedAt);
       const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-      
-      // Count movies per month
       monthlyMap.set(monthKey, (monthlyMap.get(monthKey) || 0) + 1);
-      
-      // Collect ratings per month
-      if (item.rating) {
-        const existing = ratingMonthlyMap.get(monthKey) || { total: 0, count: 0 };
-        existing.total += item.rating;
-        existing.count += 1;
-        ratingMonthlyMap.set(monthKey, existing);
-      }
-      
-      // Count genres
+
       if (item.movie.genres) {
         item.movie.genres.forEach(genre => {
           genreMap.set(genre, (genreMap.get(genre) || 0) + 1);
@@ -360,28 +348,24 @@ export class MemStorage implements IStorage {
       }
     });
 
-    // Convert to chart data arrays
     const monthlyData = Array.from(monthlyMap.entries())
       .map(([month, count]) => ({ month, count }))
-      .sort((a, b) => a.month.localeCompare(b.month));
-
-    const ratingData = Array.from(ratingMonthlyMap.entries())
-      .map(([month, data]) => ({ 
-        month, 
-        averageRating: Math.round((data.total / data.count) * 100) / 100 
-      }))
       .sort((a, b) => a.month.localeCompare(b.month));
 
     const genreData = Array.from(genreMap.entries())
       .map(([genre, count]) => ({ genre, count }))
       .sort((a, b) => b.count - a.count)
-      .slice(0, 7); // Top 7 genres
+      .slice(0, 7);
 
-    return {
-      monthlyData,
-      genreData,
-      ratingData
-    };
+    const movieRatings = watchedItems
+      .filter(item => item.rating != null)
+      .sort((a, b) => new Date(a.finishedAt).getTime() - new Date(b.finishedAt).getTime())
+      .map(item => ({
+        title: item.movie.title.length > 20 ? item.movie.title.slice(0, 18) + '…' : item.movie.title,
+        rating: item.rating!,
+      }));
+
+    return { monthlyData, genreData, movieRatings };
   }
 
   async getViewingStats(userId: string): Promise<{
@@ -670,31 +654,19 @@ class PostgresStorage implements IStorage {
   async getChartData(userId: string): Promise<{
     monthlyData: { month: string; count: number }[];
     genreData: { genre: string; count: number }[];
-    ratingData: { month: string; averageRating: number }[];
+    movieRatings: { title: string; rating: number }[];
   }> {
     const watchedItems = await this.getWatchedItems(userId);
     
     // Group by month for movies watched over time
     const monthlyMap = new Map<string, number>();
-    const ratingMonthlyMap = new Map<string, { total: number; count: number }>();
     const genreMap = new Map<string, number>();
 
     watchedItems.forEach(item => {
       const date = new Date(item.finishedAt);
       const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-      
-      // Count movies per month
       monthlyMap.set(monthKey, (monthlyMap.get(monthKey) || 0) + 1);
-      
-      // Collect ratings per month
-      if (item.rating) {
-        const existing = ratingMonthlyMap.get(monthKey) || { total: 0, count: 0 };
-        existing.total += item.rating;
-        existing.count += 1;
-        ratingMonthlyMap.set(monthKey, existing);
-      }
-      
-      // Count genres
+
       if (item.movie.genres) {
         item.movie.genres.forEach(genre => {
           genreMap.set(genre, (genreMap.get(genre) || 0) + 1);
@@ -702,28 +674,24 @@ class PostgresStorage implements IStorage {
       }
     });
 
-    // Convert to chart data arrays
     const monthlyData = Array.from(monthlyMap.entries())
       .map(([month, count]) => ({ month, count }))
-      .sort((a, b) => a.month.localeCompare(b.month));
-
-    const ratingData = Array.from(ratingMonthlyMap.entries())
-      .map(([month, data]) => ({ 
-        month, 
-        averageRating: Math.round((data.total / data.count) * 100) / 100 
-      }))
       .sort((a, b) => a.month.localeCompare(b.month));
 
     const genreData = Array.from(genreMap.entries())
       .map(([genre, count]) => ({ genre, count }))
       .sort((a, b) => b.count - a.count)
-      .slice(0, 7); // Top 7 genres
+      .slice(0, 7);
 
-    return {
-      monthlyData,
-      genreData,
-      ratingData
-    };
+    const movieRatings = watchedItems
+      .filter(item => item.rating != null)
+      .sort((a, b) => new Date(a.finishedAt).getTime() - new Date(b.finishedAt).getTime())
+      .map(item => ({
+        title: item.movie.title.length > 20 ? item.movie.title.slice(0, 18) + '…' : item.movie.title,
+        rating: item.rating!,
+      }));
+
+    return { monthlyData, genreData, movieRatings };
   }
 
   async getViewingStats(userId: string): Promise<{

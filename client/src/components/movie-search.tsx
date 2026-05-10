@@ -19,12 +19,15 @@ export default function MovieSearch({ userId }: MovieSearchProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: searchResults = [], isLoading } = useQuery({
+  const { data: searchResults = [], isLoading, error: searchError } = useQuery({
     queryKey: ["/api/search", searchQuery],
     enabled: !!searchQuery && hasSearched,
     queryFn: async () => {
       const res = await fetch(`/api/search?query=${encodeURIComponent(searchQuery)}`);
-      if (!res.ok) throw new Error('Search failed');
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || 'Search failed');
+      }
       return res.json() as Promise<TMDBSearchResult[]>;
     }
   });
@@ -168,7 +171,13 @@ export default function MovieSearch({ userId }: MovieSearchProps) {
             </div>
           )}
 
-          {hasSearched && !isLoading && (
+          {searchError && (
+            <div className="text-red-600 p-3 bg-red-50 rounded text-sm">
+              Search error: {(searchError as Error).message}
+            </div>
+          )}
+
+          {hasSearched && !isLoading && !searchError && (
             <div className="space-y-3">
               {searchResults.length > 0 ? (
                 searchResults.map((movie) => (
