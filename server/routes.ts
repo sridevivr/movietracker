@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertMovieSchema, insertWatchlistItemSchema, insertCurrentlyWatchingSchema, insertWatchedItemSchema, insertRewatchSchema } from "@shared/schema";
+import { insertWatchlistItemSchema, insertCurrentlyWatchingSchema, insertWatchedItemSchema, insertRewatchSchema } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
 
@@ -151,14 +151,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get or create movie
   app.post("/api/movies", async (req, res) => {
     try {
-      const movieData = insertMovieSchema.parse(req.body);
-      
-      // Check if movie already exists
+      const b = req.body;
+      if (!b.tmdbId || !b.title || !b.type) {
+        return res.status(400).json({ error: "tmdbId, title, and type are required" });
+      }
+      const movieData = {
+        tmdbId: String(b.tmdbId),
+        title: String(b.title),
+        type: String(b.type),
+        overview: b.overview ?? null,
+        releaseDate: b.releaseDate ?? null,
+        posterPath: b.posterPath ?? null,
+        backdropPath: b.backdropPath ?? null,
+        voteAverage: b.voteAverage != null ? Number(b.voteAverage) : null,
+        runtime: b.runtime != null ? Math.round(Number(b.runtime)) : null,
+        episodeRuntime: b.episodeRuntime != null ? Math.round(Number(b.episodeRuntime)) : null,
+        totalSeasons: b.totalSeasons != null ? Math.round(Number(b.totalSeasons)) : null,
+        totalEpisodes: b.totalEpisodes != null ? Math.round(Number(b.totalEpisodes)) : null,
+        genres: Array.isArray(b.genres) ? b.genres : null,
+      };
+
       let movie = await storage.getMovieByTmdbId(movieData.tmdbId);
       if (!movie) {
         movie = await storage.createMovie(movieData);
       }
-      
+
       res.json(movie);
     } catch (error) {
       console.error("Failed to create/get movie:", error);
