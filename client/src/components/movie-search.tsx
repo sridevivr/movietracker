@@ -48,18 +48,15 @@ export default function MovieSearch({ userId }: MovieSearchProps) {
       queryClient.invalidateQueries({ queryKey: ["/api/watchlist", userId] });
       toast({ title: "Added to watchlist!" });
     },
-    onError: () => {
-      toast({ title: "Failed to add to watchlist", variant: "destructive" });
+    onError: (e: any) => {
+      toast({ title: "Failed to add to watchlist", description: e.message, variant: "destructive" });
     }
   });
 
   const addToCurrentlyWatchingMutation = useMutation({
     mutationFn: async (movie: TMDBSearchResult) => {
-      // First create/get the movie
       const movieRes = await apiRequest("POST", "/api/movies", movie);
       const movieData = await movieRes.json();
-      
-      // Then add to currently watching
       await apiRequest("POST", "/api/currently-watching", {
         userId,
         movieId: movieData.id,
@@ -70,18 +67,15 @@ export default function MovieSearch({ userId }: MovieSearchProps) {
       queryClient.invalidateQueries({ queryKey: ["/api/currently-watching", userId] });
       toast({ title: "Added to currently watching!" });
     },
-    onError: () => {
-      toast({ title: "Failed to add to currently watching", variant: "destructive" });
+    onError: (e: any) => {
+      toast({ title: "Failed to add to currently watching", description: e.message, variant: "destructive" });
     }
   });
 
   const markAsWatchedMutation = useMutation({
     mutationFn: async (movie: TMDBSearchResult) => {
-      // First create/get the movie
       const movieRes = await apiRequest("POST", "/api/movies", movie);
       const movieData = await movieRes.json();
-      
-      // Then add to watched
       await apiRequest("POST", "/api/watched", {
         userId,
         movieId: movieData.id,
@@ -95,8 +89,8 @@ export default function MovieSearch({ userId }: MovieSearchProps) {
       queryClient.invalidateQueries({ queryKey: ["/api/stats", userId] });
       toast({ title: "Marked as watched!" });
     },
-    onError: () => {
-      toast({ title: "Failed to mark as watched", variant: "destructive" });
+    onError: (e: any) => {
+      toast({ title: "Failed to mark as watched", description: e.message, variant: "destructive" });
     }
   });
 
