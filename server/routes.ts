@@ -177,9 +177,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       res.json(movie);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to create/get movie:", error);
-      res.status(400).json({ error: "Invalid movie data" });
+      res.status(500).json({ error: error?.message ?? "Failed to create movie" });
     }
   });
 
@@ -199,8 +199,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const data = insertWatchlistItemSchema.parse(req.body);
       const item = await storage.addToWatchlist(data);
       res.json(item);
-    } catch (error) {
-      res.status(400).json({ error: "Invalid watchlist data" });
+    } catch (error: any) {
+      res.status(500).json({ error: error?.message ?? "Failed to add to watchlist" });
     }
   });
 
@@ -230,8 +230,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const data = insertCurrentlyWatchingSchema.parse(req.body);
       const item = await storage.addToCurrentlyWatching(data);
       res.json(item);
-    } catch (error) {
-      res.status(400).json({ error: "Invalid currently watching data" });
+    } catch (error: any) {
+      res.status(500).json({ error: error?.message ?? "Failed to add to currently watching" });
     }
   });
 
@@ -286,8 +286,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const data = insertWatchedItemSchema.parse(req.body);
       const item = await storage.addToWatched(data);
       res.json(item);
-    } catch (error) {
-      res.status(400).json({ error: "Invalid watched item data" });
+    } catch (error: any) {
+      console.error("Failed to add watched item:", error);
+      res.status(500).json({ error: error?.message ?? "Failed to add watched item" });
     }
   });
 

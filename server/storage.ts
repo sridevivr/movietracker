@@ -1,7 +1,8 @@
 import { type User, type InsertUser, type Movie, type InsertMovie, type WatchlistItem, type InsertWatchlistItem, type CurrentlyWatching, type InsertCurrentlyWatching, type WatchedItem, type InsertWatchedItem, type Rewatch, type InsertRewatch } from "@shared/schema";
 import { randomUUID } from "crypto";
-import { drizzle } from "drizzle-orm/neon-http";
-import { neon } from "@neondatabase/serverless";
+import { drizzle } from "drizzle-orm/neon-serverless";
+import { Pool, neonConfig } from "@neondatabase/serverless";
+import ws from "ws";
 import { users, movies, watchlistItems, currentlyWatching, watchedItems, rewatches } from "@shared/schema";
 import { eq, and, desc } from "drizzle-orm";
 
@@ -427,8 +428,9 @@ class PostgresStorage implements IStorage {
   private db;
 
   constructor() {
-    const sql = neon(process.env.DATABASE_URL!);
-    this.db = drizzle(sql);
+    neonConfig.webSocketConstructor = ws;
+    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+    this.db = drizzle({ client: pool });
   }
 
   async getUser(id: string): Promise<User | undefined> {
