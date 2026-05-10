@@ -454,7 +454,7 @@ class PostgresStorage implements IStorage {
   }
 
   async createUser(user: InsertUser): Promise<User> {
-    const result = await this.db.insert(users).values(user).returning();
+    const result = await this.db.insert(users).values({ id: randomUUID(), ...user }).returning();
     return result[0];
   }
 
@@ -463,6 +463,7 @@ class PostgresStorage implements IStorage {
     if (result[0]) return result[0];
     // Create a demo user if none exist
     const created = await this.db.insert(users).values({
+      id: randomUUID(),
       username: "demo",
       authProvider: "local",
     }).returning();
@@ -481,6 +482,7 @@ class PostgresStorage implements IStorage {
 
   async createMovie(movie: InsertMovie): Promise<Movie> {
     const movieData = {
+      id: randomUUID(),
       ...movie,
       overview: movie.overview || null,
       releaseDate: movie.releaseDate || null,
@@ -512,7 +514,7 @@ class PostgresStorage implements IStorage {
   }
 
   async addToWatchlist(item: InsertWatchlistItem): Promise<WatchlistItem> {
-    const result = await this.db.insert(watchlistItems).values(item).returning();
+    const result = await this.db.insert(watchlistItems).values({ id: randomUUID(), ...item }).returning();
     return result[0];
   }
 
@@ -546,7 +548,7 @@ class PostgresStorage implements IStorage {
   }
 
   async addToCurrentlyWatching(item: InsertCurrentlyWatching): Promise<CurrentlyWatching> {
-    const result = await this.db.insert(currentlyWatching).values(item).returning();
+    const result = await this.db.insert(currentlyWatching).values({ id: randomUUID(), ...item }).returning();
     return result[0];
   }
 
@@ -602,7 +604,7 @@ class PostgresStorage implements IStorage {
   }
 
   async addToWatched(item: InsertWatchedItem): Promise<WatchedItem> {
-    const result = await this.db.insert(watchedItems).values(item).returning();
+    const result = await this.db.insert(watchedItems).values({ id: randomUUID(), ...item }).returning();
     return result[0];
   }
 
@@ -649,7 +651,7 @@ class PostgresStorage implements IStorage {
   }
 
   async addRewatch(rewatch: InsertRewatch): Promise<Rewatch> {
-    const result = await this.db.insert(rewatches).values(rewatch).returning();
+    const result = await this.db.insert(rewatches).values({ id: randomUUID(), ...rewatch }).returning();
     return result[0];
   }
 
